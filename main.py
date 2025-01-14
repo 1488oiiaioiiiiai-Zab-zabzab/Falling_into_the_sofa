@@ -150,8 +150,9 @@ def saveslots():
             pygame.draw.rect(screen, (192, 192, 192), play_button1)
             pygame.draw.rect(screen, (192, 192, 192), delete_button1)
 
+            skibidifont = pygame.font.Font(None, 15)
             play_text_surface = font.render("Играть", True, (0, 0, 0))
-            delete_text_surface = font.render("Удалить сохранение", True, (0, 0, 0))
+            delete_text_surface = skibidifont.render("Удалить сохранение", True, (0, 0, 0))
 
             play_text_rect = play_text_surface.get_rect(center=play_button1.center)
             delete_text_rect = delete_text_surface.get_rect(center=delete_button1.center)
@@ -162,8 +163,9 @@ def saveslots():
             pygame.draw.rect(screen, (192, 192, 192), play_button2)
             pygame.draw.rect(screen, (192, 192, 192), delete_button2)
 
+            skibidifont = pygame.font.Font(None, 15)
             play_text_surface = font.render("Играть", True, (0, 0, 0))
-            delete_text_surface = font.render("Удалить сохранение", True, (0, 0, 0))
+            delete_text_surface = skibidifont.render("Удалить сохранение", True, (0, 0, 0))
 
             play_text_rect = play_text_surface.get_rect(center=play_button2.center)
             delete_text_rect = delete_text_surface.get_rect(center=delete_button2.center)
@@ -175,8 +177,9 @@ def saveslots():
             pygame.draw.rect(screen, (192, 192, 192), play_button3)
             pygame.draw.rect(screen, (192, 192, 192), delete_button3)
 
+            skibidifont = pygame.font.Font(None, 15)
             play_text_surface = font.render("Играть", True, (0, 0, 0))
-            delete_text_surface = font.render("Удалить сохранение", True, (0, 0, 0))
+            delete_text_surface = skibidifont.render("Удалить сохранение", True, (0, 0, 0))
 
             play_text_rect = play_text_surface.get_rect(center=play_button3.center)
             delete_text_rect = delete_text_surface.get_rect(center=delete_button3.center)

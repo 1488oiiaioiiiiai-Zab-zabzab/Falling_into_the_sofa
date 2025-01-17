@@ -217,14 +217,50 @@ class Tile(pygame.sprite.Sprite):
         self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
 
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(player_group, all_sprites)
-        self.image = player_image
+        self.image1 = player_image
+        self.image = pygame.transform.scale(self.image1, (player_width, player_height))
         self.rect = self.image.get_rect().move(
-            tile_width * pos_x + 15, tile_height * pos_y + 5)
+            tile_width * pos_x, tile_height * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.gravity = 0.5
+        self.velocity_y = 0
+        self.on_ground = False
+
+    def move(self, dx, dy, tiles):
+        old_rect = self.rect.copy()
+
+        self.rect.x += dx
+        for tile in tiles:
+            if pygame.sprite.collide_mask(self, tile) or self.rect.x < -200:
+                self.rect.x = old_rect.x
+                break
+
+    def jump(self):
+        if self.on_ground:
+            self.velocity_y = -10
+
+    def power_of_gravity(self, tiles):
+        self.velocity_y += self.gravity
+        self.rect.y += self.velocity_y
+        old_rect = self.rect.copy()
+
+        self.on_ground = False
+        for tile in tiles:
+            if pygame.sprite.collide_mask(self, tile):
+                if self.velocity_y > 0:
+                    self.rect.bottom = tile.rect.top
+                    self.on_ground = True
+                    self.velocity_y = 0
+                else:
+                    self.rect.y = old_rect.y
+        if not self.on_ground:
+            self.rect.y += self.velocity_y
 
 
 def generate_level(level):
@@ -236,7 +272,6 @@ def generate_level(level):
             elif level[y][x] == '#':
                 Tile('floor', x, y)
             elif level[y][x] == '@':
-                Tile('empty', x, y)
                 new_player = Player(x, y)
     return new_player, x, y
 
@@ -260,14 +295,18 @@ if __name__ == '__main__':
     start_screen()
     saveslots()
 
-    tile_width = tile_height = (height + width) // 50
+    tile_width = tile_height = (height + width) // 64
 
     tile_images = {'floor': load_image("tiles/floor.png")}
+
+    player_width = player_height = (height + width) // 16
 
     player_image = load_image('player/maincharacter.png')
 
     player, level_x, level_y = generate_level(load_level('map1.txt'))
     running = True
+    player_speed = 10
+    clock = pygame.time.Clock()
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -276,7 +315,18 @@ if __name__ == '__main__':
                 a = pygame.key.get_pressed()
                 if a[pygame.K_ESCAPE]:
                     terminate()
-        screen.fill(pygame.Color('black'))
-        tiles_group.draw(screen)
+
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_a]:
+            player.move(-player_speed, 0, tiles_group)
+        if keys[pygame.K_d]:
+            player.move(player_speed, 0, tiles_group)
+        if keys[pygame.K_SPACE]:
+            player.jump()
+        player.power_of_gravity(tiles_group)
+
+        screen.fill(pygame.Color((7, 18, 30)))
+        all_sprites.draw(screen)
         pygame.display.flip()
+        clock.tick(FPS)
     pygame.quit()

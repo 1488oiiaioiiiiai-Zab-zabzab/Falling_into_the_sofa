@@ -228,9 +228,24 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.mask = pygame.mask.from_surface(self.image)
+        self.frame_index = 0
+        self.frame_delay = 10
+        self.frame_counter = 0
         self.gravity = 0.5
         self.velocity_y = 0
         self.on_ground = False
+        self.stand_frames = [
+            pygame.transform.scale(load_image("player/idle_animation/charakterspriteanimationidle1.png"),
+                                   (player_width, player_height)),
+            pygame.transform.scale(load_image("player/idle_animation/charakterspriteanimationidle2.png"),
+                                   (player_width, player_height)),
+            pygame.transform.scale(load_image("player/idle_animation/charakterspriteanimationidle3.png"),
+                                   (player_width, player_height)),
+            pygame.transform.scale(load_image("player/idle_animation/charakterspriteanimationidle4.png"),
+                                   (player_width, player_height))]
+        self.stand_index = 0
+        self.stand_delay = 10
+        self.stand_counter = 0
 
     def move(self, dx, dy, tiles):
         old_rect = self.rect.copy()
@@ -261,6 +276,18 @@ class Player(pygame.sprite.Sprite):
                     self.rect.y = old_rect.y
         if not self.on_ground:
             self.rect.y += self.velocity_y
+
+    def update(self):
+        if self.on_ground and self.velocity_y == 0:
+            self.animate_standing()
+
+    def animate_standing(self):
+        self.frame_counter += 1
+        if self.frame_counter >= self.frame_delay:
+            self.frame_counter = 0
+            self.frame_index = (self.frame_index + 1) % len(self.stand_frames)
+            self.current_frame = self.stand_frames[self.frame_index]
+            self.image = self.current_frame
 
 
 def generate_level(level):
@@ -319,11 +346,13 @@ if __name__ == '__main__':
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a]:
             player.move(-player_speed, 0, tiles_group)
-        if keys[pygame.K_d]:
+        elif keys[pygame.K_d]:
             player.move(player_speed, 0, tiles_group)
         if keys[pygame.K_SPACE]:
             player.jump()
+
         player.power_of_gravity(tiles_group)
+        player.update()
 
         screen.fill(pygame.Color((7, 18, 30)))
         all_sprites.draw(screen)

@@ -234,6 +234,7 @@ class Player(pygame.sprite.Sprite):
         self.gravity = 0.5
         self.velocity_y = 0
         self.on_ground = False
+        self.is_move = False
         self.stand_frames = [
             pygame.transform.scale(load_image("player/idle_animation/charakterspriteanimationidle1.png"),
                                    (player_width, player_height)),
@@ -243,11 +244,34 @@ class Player(pygame.sprite.Sprite):
                                    (player_width, player_height)),
             pygame.transform.scale(load_image("player/idle_animation/charakterspriteanimationidle4.png"),
                                    (player_width, player_height))]
+        self.run_frames = [pygame.transform.scale(load_image("player/run_animation/charakterspriteanimationrun1.png"),
+                                                  (player_width, player_height)),
+                           pygame.transform.scale(load_image("player/run_animation/charakterspriteanimationrun2.png"),
+                                                  (player_width, player_height)),
+                           pygame.transform.scale(load_image("player/run_animation/charakterspriteanimationrun3.png"),
+                                                  (player_width, player_height)),
+                           pygame.transform.scale(load_image("player/run_animation/charakterspriteanimationrun4.png"),
+                                                  (player_width, player_height)),
+                           pygame.transform.scale(load_image("player/run_animation/charakterspriteanimationrun5.png"),
+                                                  (player_width, player_height)),
+                           pygame.transform.scale(load_image("player/run_animation/charakterspriteanimationrun6.png"),
+                                                  (player_width, player_height))
+                           ]
+        self.jump_frames = [pygame.transform.scale(load_image("player/jumpanimation/charakterspritefalling.png"),
+                                                   (player_width, player_height)),
+                            pygame.transform.scale(load_image("player/jumpanimation/charakterspritejump.png"),
+                                                   (player_width, player_height))]
         self.stand_index = 0
         self.stand_delay = 10
         self.stand_counter = 0
+        self.direction = 1
 
     def move(self, dx, dy, tiles):
+        if dx < 0:
+            self.direction = -1
+        elif dx > 0:
+            self.direction = 1
+
         old_rect = self.rect.copy()
 
         self.rect.x += dx
@@ -278,8 +302,15 @@ class Player(pygame.sprite.Sprite):
             self.rect.y += self.velocity_y
 
     def update(self):
-        if self.on_ground and self.velocity_y == 0:
+        if self.on_ground and not self.is_move:
             self.animate_standing()
+        elif not self.on_ground:
+            if self.direction == -1:
+                self.image = pygame.transform.flip(self.jump_frames[1], True, False)
+            else:
+                self.image = self.jump_frames[1]
+        elif self.is_move:
+            self.animate_running()
 
     def animate_standing(self):
         self.frame_counter += 1
@@ -287,7 +318,21 @@ class Player(pygame.sprite.Sprite):
             self.frame_counter = 0
             self.frame_index = (self.frame_index + 1) % len(self.stand_frames)
             self.current_frame = self.stand_frames[self.frame_index]
-            self.image = self.current_frame
+            if self.direction == -1:
+                self.image = pygame.transform.flip(self.current_frame, True, False)
+            else:
+                self.image = self.current_frame
+
+    def animate_running(self):
+        self.frame_counter += 1
+        if self.frame_counter >= self.frame_delay:
+            self.frame_counter = 0
+            self.frame_index = (self.frame_index + 1) % len(self.run_frames)
+            self.current_frame = self.run_frames[self.frame_index]
+            if self.direction == -1:
+                self.image = pygame.transform.flip(self.current_frame, True, False)
+            else:
+                self.image = self.current_frame
 
 
 def generate_level(level):
@@ -345,9 +390,13 @@ if __name__ == '__main__':
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a]:
+            player.is_move = True
             player.move(-player_speed, 0, tiles_group)
         elif keys[pygame.K_d]:
+            player.is_move = True
             player.move(player_speed, 0, tiles_group)
+        else:
+            player.is_move = False
         if keys[pygame.K_SPACE]:
             player.jump()
 

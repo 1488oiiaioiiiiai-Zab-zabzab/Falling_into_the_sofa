@@ -4,6 +4,7 @@ import sqlite3
 import os
 
 FPS = 60
+CURRENTSAVESLOT = 0
 
 
 def getalldatafromsaveslot(slotnumber):
@@ -59,10 +60,12 @@ def saveslots():
 
     buttonpressed = 0
 
+    global CURRENTSAVESLOT
+
     if len(getalldatafromsaveslot(1)) == 0:
         slotbtn1_text = "Слот1"
     else:
-        slotbtn1_text = getalldatafromsaveslot(1)[1]
+        slotbtn1_text = getalldatafromsaveslot(1)[0][1]
     x = (width - button_width) // 4
     y = height // 2 + (1 - 1.5) * button_height
     button1 = pygame.Rect(x, y, button_width, button_height)
@@ -70,7 +73,8 @@ def saveslots():
     if len(getalldatafromsaveslot(2)) == 0:
         slotbtn2_text = "Слот2"
     else:
-        slotbtn2_text = getalldatafromsaveslot(1)[1]
+        slotbtn2_text = getalldatafromsaveslot(2)[0][1]
+        print(slotbtn2_text)
     x2 = (width - button_width) // 2
     y2 = height // 2 + (1 - 1.5) * button_height
     button2 = pygame.Rect(x2, y2, button_width, button_height)
@@ -78,7 +82,7 @@ def saveslots():
     if len(getalldatafromsaveslot(3)) == 0:
         slotbtn3_text = "Слот3"
     else:
-        slotbtn3_text = getalldatafromsaveslot(1)[1]
+        slotbtn3_text = getalldatafromsaveslot(3)[0][1]
     x3 = (width - button_width) // 1.25
     y3 = height // 2 + (1 - 1.5) * button_height
     button3 = pygame.Rect(x3, y3, button_width, button_height)
@@ -108,17 +112,47 @@ def saveslots():
                 elif button3.collidepoint(event.pos):
                     buttonpressed = 3
                 elif play_button1.collidepoint(event.pos) and buttonpressed == 1:
+                    CURRENTSAVESLOT = 1
                     return
                 elif delete_button1.collidepoint(event.pos) and buttonpressed == 1:
-                    print("Удалить сохранение нажато")
+                    con = sqlite3.connect("gamedata.db")
+
+                    cur = con.cursor()
+
+                    pon = """DELETE FROM saveslotsdata WHERE slot_number = 1"""
+                    cur.execute(pon)
+
+                    con.commit()
+                    con.close()
+                    slotbtn1_text = "Слот1"
                 elif play_button2.collidepoint(event.pos) and buttonpressed == 2:
+                    CURRENTSAVESLOT = 2
                     return
                 elif delete_button2.collidepoint(event.pos) and buttonpressed == 2:
-                    print("Удалить сохранение нажато")
+                    con = sqlite3.connect("gamedata.db")
+
+                    cur = con.cursor()
+
+                    pon = """DELETE FROM saveslotsdata WHERE slot_number = 2"""
+                    cur.execute(pon)
+
+                    con.commit()
+                    con.close()
+                    slotbtn2_text = "Слот2"
                 elif play_button3.collidepoint(event.pos) and buttonpressed == 3:
+                    CURRENTSAVESLOT = 3
                     return
                 elif delete_button3.collidepoint(event.pos) and buttonpressed == 3:
-                    print("Удалить сохранение нажато")
+                    con = sqlite3.connect("gamedata.db")
+
+                    cur = con.cursor()
+
+                    pon = """DELETE FROM saveslotsdata WHERE slot_number = 3"""
+                    cur.execute(pon)
+
+                    con.commit()
+                    con.close()
+                    slotbtn1_text = "Слот3"
                 else:
                     buttonpressed = 0
 
@@ -142,7 +176,7 @@ def saveslots():
         screen.blit(text_surface, text_rect)
         if buttonpressed == 1:
             pygame.draw.rect(screen, (192, 192, 192), play_button1)
-            pygame.draw.rect(screen, (192, 192, 192), delete_button1)
+            pygame.draw.rect(screen, (231, 76, 60), delete_button1)
 
             skibidifont = pygame.font.Font(None, 15)
             play_text_surface = font.render("Играть", True, (0, 0, 0))
@@ -155,7 +189,7 @@ def saveslots():
             screen.blit(delete_text_surface, delete_text_rect)
         elif buttonpressed == 2:
             pygame.draw.rect(screen, (192, 192, 192), play_button2)
-            pygame.draw.rect(screen, (192, 192, 192), delete_button2)
+            pygame.draw.rect(screen, (231, 76, 60), delete_button2)
 
             skibidifont = pygame.font.Font(None, 15)
             play_text_surface = font.render("Играть", True, (0, 0, 0))
@@ -169,7 +203,7 @@ def saveslots():
 
         elif buttonpressed == 3:
             pygame.draw.rect(screen, (192, 192, 192), play_button3)
-            pygame.draw.rect(screen, (192, 192, 192), delete_button3)
+            pygame.draw.rect(screen, (231, 76, 60), delete_button3)
 
             skibidifont = pygame.font.Font(None, 15)
             play_text_surface = font.render("Играть", True, (0, 0, 0))
@@ -218,6 +252,32 @@ class Tile(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.mask = pygame.mask.from_surface(self.image)
+
+
+class Checkpoint(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y, name):
+        super().__init__(all_sprites, checkpoint_group)
+        self.x = pos_x
+        self.y = pos_y
+        self.name = name
+        self.image1 = load_image("checkpoint.png")
+        self.image = pygame.transform.scale(self.image1, (tile_width * 2, 2 * tile_height))
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def interact(self):
+        a = getalldatafromsaveslot(CURRENTSAVESLOT)
+        if len(a) == 0:
+            con = sqlite3.connect("gamedata.db")
+            cur = con.cursor()
+
+            cur.execute("""INSERT INTO saveslotsdata (slot_number, name, checkpoint_x, checkpoint_y) 
+                                          VALUES (?, ?, ?, ?)""",
+                        (CURRENTSAVESLOT, self.name, self.x, self.y))
+
+            con.commit()
+            con.close()
 
 
 class Player(pygame.sprite.Sprite):
@@ -334,6 +394,25 @@ class Player(pygame.sprite.Sprite):
             else:
                 self.image = self.current_frame
 
+    def interact(self, sprites):
+        for sprite in sprites:
+            if pygame.sprite.collide_mask(self, sprite):
+                sprite.interact()
+
+
+class Camera:
+    def __init__(self):
+        self.dx = 0
+        self.dy = 0
+
+    def apply(self, obj):
+        obj.rect.x += self.dx
+        obj.rect.y += self.dy
+
+    def update(self, target):
+        self.dx = -(target.rect.x + target.rect.w // 2 - width // 2)
+        self.dy = -(target.rect.y + target.rect.h // 2 - height // 2)
+
 
 def generate_level(level):
     new_player, x, y = None, None, None
@@ -344,7 +423,26 @@ def generate_level(level):
             elif level[y][x] == '#':
                 Tile('floor', x, y)
             elif level[y][x] == '@':
-                new_player = Player(x, y)
+                con = sqlite3.connect("gamedata.db")
+
+                cur = con.cursor()
+
+                x1 = f"""SELECT checkpoint_x FROM saveslotsdata 
+                    WHERE slot_number = {CURRENTSAVESLOT}"""
+                x1 = cur.execute(x1).fetchone()
+
+                y1 = f"""SELECT checkpoint_y FROM saveslotsdata 
+                                    WHERE slot_number = {CURRENTSAVESLOT}"""
+                y1 = cur.execute(y1).fetchone()
+
+                con.close()
+
+                if y1 and x1:
+                    new_player = Player(x1[0], y1[0])
+                else:
+                    new_player = Player(x, y)
+            elif level[y][x] == "1":
+                Checkpoint(x, y, "вход в башню")
     return new_player, x, y
 
 
@@ -363,6 +461,7 @@ if __name__ == '__main__':
     all_sprites = pygame.sprite.Group()
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
+    checkpoint_group = pygame.sprite.Group()
 
     start_screen()
     saveslots()
@@ -374,6 +473,8 @@ if __name__ == '__main__':
     player_width = player_height = (height + width) // 16
 
     player_image = load_image('player/maincharacter.png')
+
+    camera = Camera()
 
     player, level_x, level_y = generate_level(load_level('map1.txt'))
     running = True
@@ -387,6 +488,8 @@ if __name__ == '__main__':
                 a = pygame.key.get_pressed()
                 if a[pygame.K_ESCAPE]:
                     terminate()
+                if a[pygame.K_e]:
+                    player.interact(checkpoint_group)
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a]:
@@ -402,8 +505,11 @@ if __name__ == '__main__':
 
         player.power_of_gravity(tiles_group)
         player.update()
+        camera.update(player)
+        for sprite in all_sprites:
+            camera.apply(sprite)
 
-        screen.fill(pygame.Color((7, 18, 30)))
+        screen.fill(pygame.Color((50, 39, 30)))
         all_sprites.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)

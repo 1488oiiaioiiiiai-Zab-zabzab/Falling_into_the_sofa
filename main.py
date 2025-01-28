@@ -152,7 +152,7 @@ def saveslots():
 
                     con.commit()
                     con.close()
-                    slotbtn1_text = "Слот3"
+                    slotbtn3_text = "Слот3"
                 else:
                     buttonpressed = 0
 
@@ -280,6 +280,55 @@ class Checkpoint(pygame.sprite.Sprite):
             con.close()
 
 
+class TrainingDummy(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(all_sprites, enemy_group)
+        self.image1 = load_image("enemies/training_dummy/dummy.png")
+        self.image = pygame.transform.scale(self.image1, (player_width, player_height))
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.health = 1000
+        self.killed = False
+        self.hurt_frame_index = 0
+        self.hurt_frame_counter = 0
+        self.hurt_frame_delay = 5
+        self.is_hurt = False
+        self.hurt_images = [pygame.transform.scale(load_image("enemies/training_dummy/damageddummysprite.png"),
+                                                   (player_width, player_height)),
+                            pygame.transform.scale(load_image("enemies/training_dummy/damageddummysprite.png"),
+                                                   (player_width, player_height))
+                            ]
+
+    def take_damage(self, amount):
+        self.health -= amount
+        if self.health <= 0:
+            self.killed = True
+            print(1)
+        else:
+            self.is_hurt = True
+
+    def update(self):
+        if self.killed:
+            self.image = load_image("enemies/training_dummy/deaddummysprite.png")
+        elif self.is_hurt:
+            self.animate_hurt()
+        else:
+            self.image = pygame.transform.scale(self.image1, (player_width, player_height))
+
+    def animate_hurt(self):
+        self.hurt_frame_counter += 1
+        if self.hurt_frame_counter >= self.hurt_frame_delay:
+            self.hurt_frame_counter = 0
+            self.hurt_frame_index += 1
+
+            if self.hurt_frame_index < len(self.hurt_images):
+                self.image = self.hurt_images[self.hurt_frame_index]
+            else:
+                self.hurt_frame_index = 0
+                self.is_hurt = False
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(player_group, all_sprites)
@@ -326,6 +375,17 @@ class Player(pygame.sprite.Sprite):
         self.stand_counter = 0
         self.direction = 1
 
+        self.attack_frames = [pygame.transform.scale(load_image("player/atk_animation/charakterspriteatkanim1.png"),
+                                                     (player_width, player_height)),
+                              pygame.transform.scale(load_image("player/atk_animation/charakterspriteatkanim2.png"),
+                                                     (player_width, player_height)),
+                              pygame.transform.scale(load_image("player/atk_animation/charakterspriteatkanim3.png"),
+                                                     (player_width, player_height))]
+        self.is_attacking = False
+        self.attack_frame_index = 0
+        self.attack_frame_counter = 0
+        self.attack_frame_delay = 5
+
     def move(self, dx, dy, tiles):
         if dx < 0:
             self.direction = -1
@@ -362,7 +422,9 @@ class Player(pygame.sprite.Sprite):
             self.rect.y += self.velocity_y
 
     def update(self):
-        if self.on_ground and not self.is_move:
+        if self.is_attacking:
+            self.animate_attack()
+        elif self.on_ground and not self.is_move:
             self.animate_standing()
         elif not self.on_ground:
             if self.direction == -1:
@@ -399,6 +461,40 @@ class Player(pygame.sprite.Sprite):
             if pygame.sprite.collide_mask(self, sprite):
                 sprite.interact()
 
+    def m1atk(self):
+        if not self.is_attacking:
+            self.is_attacking = True
+            self.attack_frame_index = 0
+
+    def animate_attack(self):
+        self.attack_frame_counter += 1
+        if self.attack_frame_counter >= self.attack_frame_delay:
+            self.attack_frame_counter = 0
+            self.attack_frame_index += 1
+            if self.attack_frame_index >= len(self.attack_frames):
+                self.is_attacking = False
+                self.attack_frame_index = 0
+            else:
+                if self.direction == -1:
+                    self.image = pygame.transform.flip(self.attack_frames[self.attack_frame_index], True, False)
+                else:
+                    self.image = self.attack_frames[self.attack_frame_index]
+
+        if self.is_attacking:
+            if self.direction == -1:
+                hitbox_position = (self.rect.x, self.rect.y)
+                hitbox_size = (40, 20)
+            else:
+                hitbox_position = (self.rect.x + (player_width // 3) * 3, self.rect.y)
+                hitbox_size = (40, 20)
+            self.damage_box(hitbox_position, hitbox_size)
+
+    def damage_box(self, position, size):
+        hitbox = pygame.Rect(position, size)
+        for enemy in enemy_group:
+            if hitbox.colliderect(enemy.rect):
+                enemy.take_damage(10)
+
 
 class Camera:
     def __init__(self):
@@ -416,12 +512,15 @@ class Camera:
 
 def generate_level(level):
     new_player, x, y = None, None, None
+    enemies = []
     for y in range(len(level)):
         for x in range(len(level[y])):
             if level[y][x] == '.':
                 pass
             elif level[y][x] == '#':
                 Tile('floor', x, y)
+            elif level[y][x] == "=":
+                enemies.append(TrainingDummy(x, y))
             elif level[y][x] == '@':
                 con = sqlite3.connect("gamedata.db")
 
@@ -442,8 +541,10 @@ def generate_level(level):
                 else:
                     new_player = Player(x, y)
             elif level[y][x] == "1":
+                Checkpoint(x, y, "тренеровка")
+            elif level[y][x] == "2":
                 Checkpoint(x, y, "вход в башню")
-    return new_player, x, y
+    return new_player, x, y, enemies
 
 
 def terminate():
@@ -453,6 +554,7 @@ def terminate():
 
 if __name__ == '__main__':
     pygame.init()
+    pygame.mixer.init()
     info = pygame.display.Info()
     width, height = info.current_w, info.current_h
     screen = pygame.display.set_mode((width, height), pygame.NOFRAME)
@@ -462,9 +564,11 @@ if __name__ == '__main__':
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
     checkpoint_group = pygame.sprite.Group()
+    enemy_group = pygame.sprite.Group()
 
     start_screen()
     saveslots()
+    pygame.mouse.set_visible(False)
 
     tile_width = tile_height = (height + width) // 64
 
@@ -476,14 +580,21 @@ if __name__ == '__main__':
 
     camera = Camera()
 
-    player, level_x, level_y = generate_level(load_level('map1.txt'))
+    player, level_x, level_y, enemies = generate_level(load_level('map1.txt'))
     running = True
     player_speed = 10
     clock = pygame.time.Clock()
+
+    pygame.mixer.music.load("data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3")
+    pygame.mixer.music.play(-1)
+    pygame.mixer.music.set_volume(0.2)
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                player.m1atk()
             if event.type == pygame.KEYDOWN:
                 a = pygame.key.get_pressed()
                 if a[pygame.K_ESCAPE]:
@@ -506,9 +617,12 @@ if __name__ == '__main__':
         player.power_of_gravity(tiles_group)
         player.update()
         camera.update(player)
+
+        for i in enemies:
+            i.update()
+
         for sprite in all_sprites:
             camera.apply(sprite)
-
         screen.fill(pygame.Color((50, 39, 30)))
         all_sprites.draw(screen)
         pygame.display.flip()

@@ -278,6 +278,17 @@ class Checkpoint(pygame.sprite.Sprite):
 
             con.commit()
             con.close()
+        else:
+            con = sqlite3.connect("gamedata.db")
+            cur = con.cursor()
+
+            cur.execute("""UPDATE saveslotsdata 
+                           SET name = ?, checkpoint_x = ?, checkpoint_y = ? 
+                           WHERE slot_number = ?""",
+                        (self.name, self.x, self.y, CURRENTSAVESLOT))
+
+            con.commit()
+            con.close()
 
 
 class TrainingDummy(pygame.sprite.Sprite):

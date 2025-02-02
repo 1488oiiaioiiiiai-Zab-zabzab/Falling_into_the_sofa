@@ -254,6 +254,26 @@ class Tile(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
 
 
+class MusicBox(pygame.sprite.Sprite):
+    def __init__(self, music, pos_x, pos_y):
+        super().__init__(all_sprites, enter_box)
+        self.played = False
+        self.music = music
+        self.image1 = load_image("empty.png")
+        self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def event(self):
+        if not self.played:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load(self.music)
+            pygame.mixer.music.play(-1)
+            pygame.mixer.music.set_volume(0.3)
+            self.played = True
+
+
 class Checkpoint(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, name):
         super().__init__(all_sprites, checkpoint_group)
@@ -338,6 +358,78 @@ class TrainingDummy(pygame.sprite.Sprite):
             else:
                 self.hurt_frame_index = 0
                 self.is_hurt = False
+
+
+class Walkingsoul(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(all_sprites, enemy_group, melee_enemy_group, enter_box)
+        self.image1 = load_image("enemies/walkingsoul/soulwalkl1.png")
+        self.image = pygame.transform.scale(self.image1, (player_width, player_height))
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.health = 1000
+        self.killed = False
+        self.hurt_frame_index = 0
+        self.hurt_frame_counter = 0
+        self.hurt_frame_delay = 5
+        self.is_hurt = False
+        self.hurt_images = [pygame.transform.scale(load_image("enemies/walkingsoul/soulgetdmg.png"),
+                                                   (player_width, player_height)),
+                            pygame.transform.scale(load_image("enemies/walkingsoul/soulgetdmg.png"),
+                                                   (player_width, player_height))
+                            ]
+        self.frame_index = 0
+        self.frame_delay = 10
+        self.frame_counter = 0
+        self.stand_frames = [pygame.transform.scale(load_image("enemies/walkingsoul/soulwalkl1.png"),
+                                                    (player_width, player_height)),
+                             pygame.transform.scale(load_image("enemies/walkingsoul/soulwalkl2.png"),
+                                                    (player_width, player_height))]
+        self.direction = 1
+
+    def take_damage(self, amount):
+        self.health -= amount
+        if self.health <= 0:
+            self.killed = True
+            print(1)
+        else:
+            self.is_hurt = True
+
+    def update(self):
+        if self.killed:
+            self.image = pygame.transform.scale(load_image("empty.png"),
+                                                (player_width, player_height))
+        elif self.is_hurt:
+            self.animate_hurt()
+        else:
+            self.animate_standing()
+
+    def animate_hurt(self):
+        self.hurt_frame_counter += 1
+        if self.hurt_frame_counter >= self.hurt_frame_delay:
+            self.hurt_frame_counter = 0
+            self.hurt_frame_index += 1
+
+            if self.hurt_frame_index < len(self.hurt_images):
+                self.image = self.hurt_images[self.hurt_frame_index]
+            else:
+                self.hurt_frame_index = 0
+                self.is_hurt = False
+
+    def animate_standing(self):
+        self.frame_counter += 1
+        if self.frame_counter >= self.frame_delay:
+            self.frame_counter = 0
+            self.frame_index = (self.frame_index + 1) % len(self.stand_frames)
+            self.current_frame = self.stand_frames[self.frame_index]
+            if self.direction == -1:
+                self.image = pygame.transform.flip(self.current_frame, True, False)
+            else:
+                self.image = self.current_frame
+
+    def event(self):
+        pass
 
 
 class Player(pygame.sprite.Sprite):
@@ -432,7 +524,7 @@ class Player(pygame.sprite.Sprite):
         if not self.on_ground:
             self.rect.y += self.velocity_y
 
-    def update(self):
+    def update(self, boxes):
         if self.is_attacking:
             self.animate_attack()
         elif self.on_ground and not self.is_move:
@@ -444,6 +536,10 @@ class Player(pygame.sprite.Sprite):
                 self.image = self.jump_frames[1]
         elif self.is_move:
             self.animate_running()
+
+        for i in boxes:
+            if self.rect.colliderect(i.rect):
+                i.event()
 
     def animate_standing(self):
         self.frame_counter += 1
@@ -530,8 +626,12 @@ def generate_level(level):
                 pass
             elif level[y][x] == '#':
                 Tile('floor', x, y)
+            elif level[y][x] == "T":
+                Tile("towerrock", x, y)
             elif level[y][x] == "=":
                 enemies.append(TrainingDummy(x, y))
+            elif level[y][x] == "$":
+                enemies.append(Walkingsoul(x, y))
             elif level[y][x] == '@':
                 con = sqlite3.connect("gamedata.db")
 
@@ -555,6 +655,7 @@ def generate_level(level):
                 Checkpoint(x, y, "тренеровка")
             elif level[y][x] == "2":
                 Checkpoint(x, y, "вход в башню")
+    MusicBox("data/music/Destroyed Realities - EXISTENTIA (Arrangement).mp3", 167, 15)
     return new_player, x, y, enemies
 
 
@@ -576,6 +677,8 @@ if __name__ == '__main__':
     player_group = pygame.sprite.Group()
     checkpoint_group = pygame.sprite.Group()
     enemy_group = pygame.sprite.Group()
+    melee_enemy_group = pygame.sprite.Group()
+    enter_box = pygame.sprite.Group()
 
     start_screen()
     saveslots()
@@ -583,7 +686,7 @@ if __name__ == '__main__':
 
     tile_width = tile_height = (height + width) // 64
 
-    tile_images = {'floor': load_image("tiles/floor.png")}
+    tile_images = {'floor': load_image("tiles/floor.png"), "towerrock": load_image("tiles/towerrock.png")}
 
     player_width = player_height = (height + width) // 16
 
@@ -626,7 +729,7 @@ if __name__ == '__main__':
             player.jump()
 
         player.power_of_gravity(tiles_group)
-        player.update()
+        player.update(enter_box)
         camera.update(player)
 
         for i in enemies:

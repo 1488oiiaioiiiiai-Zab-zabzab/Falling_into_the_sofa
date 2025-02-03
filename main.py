@@ -2,9 +2,11 @@ import pygame
 import sys
 import sqlite3
 import os
+import cv2
 
 FPS = 60
 CURRENTSAVESLOT = 0
+currentmusic = "data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3"
 
 
 def getalldatafromsaveslot(slotnumber):
@@ -266,17 +268,18 @@ class MusicBox(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
 
     def event(self):
-        if not self.played:
+        global currentmusic
+        if self.music != "False" and self.music != currentmusic:
             pygame.mixer.music.stop()
             pygame.mixer.music.load(self.music)
             pygame.mixer.music.play(-1)
-            pygame.mixer.music.set_volume(0.3)
-            self.played = True
+            pygame.mixer.music.set_volume(0.2)
+            currentmusic = self.music
 
 
 class Checkpoint(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y, name):
-        super().__init__(all_sprites, checkpoint_group)
+    def __init__(self, pos_x, pos_y, name, music="False"):
+        super().__init__(all_sprites, checkpoint_group, enter_box)
         self.x = pos_x
         self.y = pos_y
         self.name = name
@@ -285,8 +288,10 @@ class Checkpoint(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.mask = pygame.mask.from_surface(self.image)
+        self.music = music
 
     def interact(self):
+        player.hp = 1000
         a = getalldatafromsaveslot(CURRENTSAVESLOT)
         if len(a) == 0:
             con = sqlite3.connect("gamedata.db")
@@ -309,6 +314,15 @@ class Checkpoint(pygame.sprite.Sprite):
 
             con.commit()
             con.close()
+
+    def event(self):
+        global currentmusic
+        if self.music != "False" and self.music != currentmusic:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load(self.music)
+            pygame.mixer.music.play(-1)
+            pygame.mixer.music.set_volume(0.2)
+            currentmusic = self.music
 
 
 class TrainingDummy(pygame.sprite.Sprite):
@@ -361,14 +375,14 @@ class TrainingDummy(pygame.sprite.Sprite):
 
 
 class Walkingsoul(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y):
-        super().__init__(all_sprites, enemy_group, melee_enemy_group, enter_box)
+    def __init__(self, pos_x, pos_y, hp, damage):
+        super().__init__(all_sprites, enemy_group, enter_box)
         self.image1 = load_image("enemies/walkingsoul/soulwalkl1.png")
         self.image = pygame.transform.scale(self.image1, (player_width, player_height))
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.mask = pygame.mask.from_surface(self.image)
-        self.health = 1000
+        self.health = hp
         self.killed = False
         self.hurt_frame_index = 0
         self.hurt_frame_counter = 0
@@ -387,6 +401,7 @@ class Walkingsoul(pygame.sprite.Sprite):
                              pygame.transform.scale(load_image("enemies/walkingsoul/soulwalkl2.png"),
                                                     (player_width, player_height))]
         self.direction = 1
+        self.damage = damage
 
     def take_damage(self, amount):
         self.health -= amount
@@ -429,7 +444,8 @@ class Walkingsoul(pygame.sprite.Sprite):
                 self.image = self.current_frame
 
     def event(self):
-        pass
+        if pygame.sprite.collide_mask(self, player) and not self.killed:
+            player.take_damage(self.damage)
 
 
 class Player(pygame.sprite.Sprite):
@@ -488,6 +504,20 @@ class Player(pygame.sprite.Sprite):
         self.attack_frame_index = 0
         self.attack_frame_counter = 0
         self.attack_frame_delay = 5
+        self.killed = False
+        self.hp = 1000
+        self.is_hurt = False
+        self.hurt_images = [pygame.transform.scale(load_image("player/charakterspritedamage.png"),
+                                                   (player_width, player_height)),
+                            pygame.transform.scale(load_image("player/charakterspritedamage.png"),
+                                                   (player_width, player_height))
+                            ]
+        self.hurt_frame_index = 0
+        self.hurt_frame_delay = 10
+        self.hurt_frame_counter = 0
+
+        self.hurt_delay = 3
+        self.hurt_delay_counter = 0
 
     def move(self, dx, dy, tiles):
         if dx < 0:
@@ -525,7 +555,11 @@ class Player(pygame.sprite.Sprite):
             self.rect.y += self.velocity_y
 
     def update(self, boxes):
-        if self.is_attacking:
+        if self.hurt_delay_counter <= 10:
+            self.hurt_delay_counter += 1
+        if self.is_hurt:
+            self.animate_hurt()
+        elif self.is_attacking:
             self.animate_attack()
         elif self.on_ground and not self.is_move:
             self.animate_standing()
@@ -602,6 +636,31 @@ class Player(pygame.sprite.Sprite):
             if hitbox.colliderect(enemy.rect):
                 enemy.take_damage(10)
 
+    def take_damage(self, amount):
+        if self.hurt_delay < self.hurt_delay_counter:
+            self.hurt_delay_counter = 0
+            if self.hp <= 0:
+                self.killed = True
+                print(1)
+            else:
+                self.is_hurt = True
+                self.hp -= amount
+
+    def animate_hurt(self):
+        self.hurt_frame_counter += 1
+        if self.hurt_frame_counter >= self.hurt_frame_delay:
+            self.hurt_frame_counter = 0
+            self.hurt_frame_index += 1
+
+            if self.hurt_frame_index < len(self.hurt_images):
+                if self.direction == -1:
+                    self.image = pygame.transform.flip(self.hurt_images[self.hurt_frame_index], True, False)
+                else:
+                    self.image = self.hurt_images[self.hurt_frame_index]
+            else:
+                self.hurt_frame_index = 0
+                self.is_hurt = False
+
 
 class Camera:
     def __init__(self):
@@ -615,6 +674,14 @@ class Camera:
     def update(self, target):
         self.dx = -(target.rect.x + target.rect.w // 2 - width // 2)
         self.dy = -(target.rect.y + target.rect.h // 2 - height // 2)
+
+    def draw_health(self):
+        health_text = f"{player.hp}/1000"
+        text_surface = pygame.font.Font(None, 50).render(health_text, True, (255, 255, 255))
+        text_x = player.rect.x + (player.rect.w - text_surface.get_width()) // 2
+        text_y = player.rect.y - text_surface.get_height() - 5
+
+        screen.blit(text_surface, (text_x, text_y))
 
 
 def generate_level(level):
@@ -631,7 +698,9 @@ def generate_level(level):
             elif level[y][x] == "=":
                 enemies.append(TrainingDummy(x, y))
             elif level[y][x] == "$":
-                enemies.append(Walkingsoul(x, y))
+                enemies.append(Walkingsoul(x, y, 1000, 50))
+            elif level[y][x] == "&":
+                enemies.append(Walkingsoul(x, y, 1200, 80))
             elif level[y][x] == '@':
                 con = sqlite3.connect("gamedata.db")
 
@@ -654,7 +723,9 @@ def generate_level(level):
             elif level[y][x] == "1":
                 Checkpoint(x, y, "тренеровка")
             elif level[y][x] == "2":
-                Checkpoint(x, y, "вход в башню")
+                Checkpoint(x, y, "вход в башню", "data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3")
+            elif level[y][x] == "3":
+                Checkpoint(x, y, "этаж 2", "data/music/Destroyed Realities - EXISTENTIA (Arrangement).mp3")
     MusicBox("data/music/Destroyed Realities - EXISTENTIA (Arrangement).mp3", 167, 15)
     return new_player, x, y, enemies
 
@@ -662,6 +733,66 @@ def generate_level(level):
 def terminate():
     pygame.quit()
     sys.exit()
+
+
+def play_death_video():
+    pygame.init()
+
+    cap = cv2.VideoCapture("data/death.mp4")
+
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    screen_width = width
+    screen_height = height
+    screen = pygame.display.set_mode((screen_width, screen_height))
+    clock = pygame.time.Clock()
+
+    last_frame = None
+
+    while cap.isOpened():
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                cap.release()
+                pygame.quit()
+                return
+            if event.type == pygame.KEYDOWN:
+                a = pygame.key.get_pressed()
+                if a[pygame.K_ESCAPE]:
+                    cap.release()
+                    pygame.quit()
+                    return
+
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        last_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        last_frame = pygame.surfarray.make_surface(last_frame.swapaxes(0, 1))
+
+        screen.fill((0, 0, 0))
+        screen.blit(last_frame, ((screen_width - frame_width) // 2, (screen_height - frame_height) // 2))
+        pygame.display.flip()
+        clock.tick(30)
+
+    cap.release()
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    return
+
+        if last_frame is not None:
+            screen.fill((0, 0, 0))
+            screen.blit(last_frame, ((screen_width - frame_width) // 2, (screen_height - frame_height) // 2))
+            pygame.display.flip()
+
+        clock.tick(30)
 
 
 if __name__ == '__main__':
@@ -677,7 +808,6 @@ if __name__ == '__main__':
     player_group = pygame.sprite.Group()
     checkpoint_group = pygame.sprite.Group()
     enemy_group = pygame.sprite.Group()
-    melee_enemy_group = pygame.sprite.Group()
     enter_box = pygame.sprite.Group()
 
     start_screen()
@@ -704,28 +834,36 @@ if __name__ == '__main__':
     pygame.mixer.music.set_volume(0.2)
 
     while running:
+        if player.killed:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load("data/music/Wet Hands.mp3")
+            pygame.mixer.music.play(-1)
+            pygame.mixer.music.set_volume(0.2)
+            play_death_video()
+            break
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and not player.killed:
                 player.m1atk()
             if event.type == pygame.KEYDOWN:
                 a = pygame.key.get_pressed()
                 if a[pygame.K_ESCAPE]:
                     terminate()
-                if a[pygame.K_e]:
+                if a[pygame.K_e] and not player.killed:
                     player.interact(checkpoint_group)
 
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_a]:
+        if keys[pygame.K_a] and not player.killed:
             player.is_move = True
             player.move(-player_speed, 0, tiles_group)
-        elif keys[pygame.K_d]:
+        elif keys[pygame.K_d] and not player.killed:
             player.is_move = True
             player.move(player_speed, 0, tiles_group)
         else:
             player.is_move = False
-        if keys[pygame.K_SPACE]:
+        if keys[pygame.K_SPACE] and not player.killed:
             player.jump()
 
         player.power_of_gravity(tiles_group)
@@ -738,6 +876,7 @@ if __name__ == '__main__':
         for sprite in all_sprites:
             camera.apply(sprite)
         screen.fill(pygame.Color((50, 39, 30)))
+        camera.draw_health()
         all_sprites.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)

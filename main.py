@@ -76,7 +76,6 @@ def saveslots():
         slotbtn2_text = "Слот2"
     else:
         slotbtn2_text = getalldatafromsaveslot(2)[0][1]
-        print(slotbtn2_text)
     x2 = (width - button_width) // 2
     y2 = height // 2 + (1 - 1.5) * button_height
     button2 = pygame.Rect(x2, y2, button_width, button_height)
@@ -349,7 +348,6 @@ class TrainingDummy(pygame.sprite.Sprite):
         self.health -= amount
         if self.health <= 0:
             self.killed = True
-            print(1)
         else:
             self.is_hurt = True
 
@@ -408,7 +406,6 @@ class Walkingsoul(pygame.sprite.Sprite):
         self.health -= amount
         if self.health <= 0:
             self.killed = True
-            print(1)
         else:
             self.is_hurt = True
 
@@ -642,7 +639,6 @@ class Player(pygame.sprite.Sprite):
             self.hurt_delay_counter = 0
             if self.hp <= 0:
                 self.killed = True
-                print(1)
             else:
                 self.is_hurt = True
                 self.hp -= amount

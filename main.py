@@ -355,7 +355,8 @@ class TrainingDummy(pygame.sprite.Sprite):
 
     def update(self):
         if self.killed:
-            self.image = load_image("enemies/training_dummy/deaddummysprite.png")
+            self.image = pygame.transform.scale(load_image("enemies/training_dummy/deaddummysprite.png"),
+                                                   (player_width, player_height))
         elif self.is_hurt:
             self.animate_hurt()
         else:
@@ -527,7 +528,7 @@ class Player(pygame.sprite.Sprite):
 
         old_rect = self.rect.copy()
 
-        self.rect.x += dx
+        self.rect.x += dx // FPS
         for tile in tiles:
             if pygame.sprite.collide_mask(self, tile) or self.rect.x < -200:
                 self.rect.x = old_rect.x
@@ -826,7 +827,7 @@ if __name__ == '__main__':
 
     player, level_x, level_y, enemies = generate_level(load_level('map1.txt'))
     running = True
-    player_speed = 10
+    player_speed = 800
     clock = pygame.time.Clock()
 
     pygame.mixer.music.load("data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3")

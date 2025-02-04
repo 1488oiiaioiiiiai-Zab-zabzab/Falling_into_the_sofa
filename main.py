@@ -1,8 +1,8 @@
-import pygame
-import sys
-import sqlite3
 import os
+import sqlite3
+import sys
 import cv2
+import pygame
 
 FPS = 60
 CURRENTSAVESLOT = 0
@@ -354,7 +354,7 @@ class TrainingDummy(pygame.sprite.Sprite):
     def update(self):
         if self.killed:
             self.image = pygame.transform.scale(load_image("enemies/training_dummy/deaddummysprite.png"),
-                                                   (player_width, player_height))
+                                                (player_width, player_height))
         elif self.is_hurt:
             self.animate_hurt()
         else:
@@ -533,7 +533,7 @@ class Player(pygame.sprite.Sprite):
 
     def jump(self):
         if self.on_ground:
-            self.velocity_y = player_width // 25 * -1
+            self.velocity_y = -40 / size_cof
 
     def power_of_gravity(self, tiles):
         self.velocity_y += self.gravity
@@ -796,26 +796,28 @@ if __name__ == '__main__':
     pygame.init()
     pygame.mixer.init()
     info = pygame.display.Info()
-    width, height = info.current_w, info.current_h
+    width, height = info.current_w, info.current_h  # параметры экрана игрока
+    width1, height1 = 640, 360  # стандартный формат используемый для создания пиксельных игр
+    size_cof = (width / width1 + height / height1) / 2  # расчет во сколько экран игрока больше чем стандартный формат
     screen = pygame.display.set_mode((width, height), pygame.NOFRAME)
     pygame.display.set_caption("game")
 
     all_sprites = pygame.sprite.Group()
-    tiles_group = pygame.sprite.Group()
-    player_group = pygame.sprite.Group()
-    checkpoint_group = pygame.sprite.Group()
-    enemy_group = pygame.sprite.Group()
-    enter_box = pygame.sprite.Group()
+    tiles_group = pygame.sprite.Group()  # тайлы
+    player_group = pygame.sprite.Group()  # игрок
+    checkpoint_group = pygame.sprite.Group()  # чекпоинты
+    enemy_group = pygame.sprite.Group()  # враги
+    enter_box = pygame.sprite.Group()  # группа справйтов которые вызывают какуюто функцию если игрок в прямоугольнике
 
-    start_screen()
-    saveslots()
+    start_screen()  # главное меню
+    saveslots()  # выбор слотов сохранения
     pygame.mouse.set_visible(False)
 
-    tile_width = tile_height = (height + width) // 64
+    tile_width = tile_height = (height + width) // (256 / size_cof)  # изменение размера спрайтов под подходящий
 
     tile_images = {'floor': load_image("tiles/floor.png"), "towerrock": load_image("tiles/towerrock.png")}
 
-    player_width = player_height = (height + width) // 16
+    player_width = player_height = (height + width) // (64 / size_cof)  # изменение размера игрока
 
     player_image = load_image('player/maincharacter.png')
 
@@ -831,7 +833,7 @@ if __name__ == '__main__':
     pygame.mixer.music.set_volume(0.2)
 
     while running:
-        if player.killed:
+        if player.killed:  # вызов окна смерти если игрок убит
             pygame.mixer.music.stop()
             pygame.mixer.music.load("data/music/Wet Hands.mp3")
             pygame.mixer.music.play(-1)

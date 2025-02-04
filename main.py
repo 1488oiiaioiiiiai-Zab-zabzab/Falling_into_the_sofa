@@ -533,7 +533,7 @@ class Player(pygame.sprite.Sprite):
 
     def jump(self):
         if self.on_ground:
-            self.velocity_y = -40 / size_cof
+            self.velocity_y = -2.2 * size_cof
 
     def power_of_gravity(self, tiles):
         self.velocity_y += self.gravity

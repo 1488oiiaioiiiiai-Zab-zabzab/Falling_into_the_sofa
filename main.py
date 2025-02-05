@@ -607,6 +607,9 @@ class Player(pygame.sprite.Sprite):
         self.hurt_delay = 3
         self.hurt_delay_counter = 0
 
+        self.last_shot_time = 0
+        self.shoot_delay = 1500
+
     def move(self, dx, dy, tiles):
         if dx < 0:
             self.direction = -1
@@ -749,7 +752,10 @@ class Player(pygame.sprite.Sprite):
                 self.is_hurt = False
 
     def shoot(self):
-        Bullet(self.rect.centerx, self.rect.centery, 100, self.direction)
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_shot_time >= self.shoot_delay:
+            Bullet(self.rect.centerx, self.rect.centery, 250, self.direction)
+            self.last_shot_time = current_time
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -757,21 +763,28 @@ class Bullet(pygame.sprite.Sprite):
         super().__init__(bullet_group, all_sprites)
         self.image1 = load_image("attack_effects/Bullet.png")
         self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
-        self.rect = self.image.get_rect().move(
-            tile_width * pos_x, tile_height * pos_y)
+        self.rect = self.image.get_rect().move(pos_x, pos_y)
         self.mask = pygame.mask.from_surface(self.image)
         self.direction = direction
         speed = player_speed * 2
         self.dmg = dmg
 
         if self.direction == -1:
+            self.image = pygame.transform.flip(pygame.transform.scale(self.image1, (tile_width, tile_height)),
+                                               True,
+                                               False)
             self.velocity = -speed
         elif self.direction == 1:
+            self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
             self.velocity = speed
 
+        self.creation_time = pygame.time.get_ticks()
+
     def update(self):
-        print(1)
         self.rect.x += self.velocity // FPS
+
+        if pygame.time.get_ticks() - self.creation_time > 2000:
+            self.kill()
 
         for tile in tiles_group:
             if pygame.sprite.collide_mask(self, tile):

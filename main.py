@@ -447,17 +447,21 @@ class Walkingsoul(pygame.sprite.Sprite):
 
 
 class YuraMob(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y, hp, damage):
+    def __init__(self, pos_x, pos_y, hp, damage, speed):
         super().__init__(all_sprites, enemy_group, enter_box)
         self.image1 = load_image("enemies/YuraMob/YuraModIdel.png")
         self.image = pygame.transform.scale(self.image1, (player_width, player_height))
+        if speed % FPS != 0:
+            print('Скорость моба должна делиться нацело на FPS')
+            terminate()
+        self.speed = speed
         self.pos_x = pos_x
         self.pos_y = pos_y
         self.pos_x_current = pos_x
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
+        self.count = 0
         self.mask = pygame.mask.from_surface(self.image)
-        self.player_rect_x = 0
         self.health = hp
         self.killed = False
         self.hurt_frame_index = 0
@@ -487,7 +491,7 @@ class YuraMob(pygame.sprite.Sprite):
             self.is_hurt = True
 
     def update(self):
-        #  self.move()
+        self.move()
         if self.killed:
             self.image = pygame.transform.scale(load_image("empty.png"),
                                                 (player_width, player_height))
@@ -524,11 +528,12 @@ class YuraMob(pygame.sprite.Sprite):
             player.take_damage(self.damage)
 
     def move(self):
-        if self.rect.x >= (6387 + 100) - (6387 - self.rect.x):
-            self.direction = -2
-        elif self.rect.x <= (6387 - 100) - (6387 - self.rect.x):
-            self.direction = 2
-        self.rect.x += (self.direction * 300) // FPS
+        if self.count == 60:
+            self.direction = -1
+        elif self.count == -60:
+            self.direction = 1
+        self.count += self.direction
+        self.rect.x += (self.direction * self.speed) // FPS
 
 
 
@@ -723,7 +728,7 @@ class Player(pygame.sprite.Sprite):
     def take_damage(self, amount):
         if self.hurt_delay < self.hurt_delay_counter:
             self.hurt_delay_counter = 0
-            if self.hp <= 0:
+            if self.hp - amount <= 0:
                 self.killed = True
             else:
                 self.is_hurt = True
@@ -783,7 +788,7 @@ def generate_level(level):
             elif level[y][x] == "$":
                 enemies.append(Walkingsoul(x, y, 1000, 50))
             elif level[y][x] == 'Y':
-                enemies.append(YuraMob(x, y, 2000, 500))
+                enemies.append(YuraMob(x, y, 2000, 500, 300))
             elif level[y][x] == "&":
                 enemies.append(Walkingsoul(x, y, 1200, 80))
             elif level[y][x] == '@':

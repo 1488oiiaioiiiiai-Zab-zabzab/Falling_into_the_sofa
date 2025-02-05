@@ -536,7 +536,6 @@ class YuraMob(pygame.sprite.Sprite):
         self.rect.x += (self.direction * self.speed) // FPS
 
 
-
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(player_group, all_sprites)
@@ -749,6 +748,40 @@ class Player(pygame.sprite.Sprite):
                 self.hurt_frame_index = 0
                 self.is_hurt = False
 
+    def shoot(self):
+        Bullet(self.rect.centerx, self.rect.centery, 100, self.direction)
+
+
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y, dmg, direction):
+        super().__init__(bullet_group, all_sprites)
+        self.image1 = load_image("attack_effects/Bullet.png")
+        self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.direction = direction
+        speed = player_speed * 2
+        self.dmg = dmg
+
+        if self.direction == -1:
+            self.velocity = -speed
+        elif self.direction == 1:
+            self.velocity = speed
+
+    def update(self):
+        print(1)
+        self.rect.x += self.velocity // FPS
+
+        for tile in tiles_group:
+            if pygame.sprite.collide_mask(self, tile):
+                self.kill()
+
+        for enemy in enemy_group:
+            if pygame.sprite.collide_mask(self, enemy):
+                enemy.take_damage(self.dmg)
+                self.kill()
+
 
 class Camera:
     def __init__(self):
@@ -901,6 +934,7 @@ if __name__ == '__main__':
     checkpoint_group = pygame.sprite.Group()  # чекпоинты
     enemy_group = pygame.sprite.Group()  # враги
     enter_box = pygame.sprite.Group()  # группа справйтов которые вызывают какуюто функцию если игрок в прямоугольнике
+    bullet_group = pygame.sprite.Group()  # группа спрайтов снарядов
 
     start_screen()  # главное меню
     saveslots()  # выбор слотов сохранения
@@ -945,6 +979,8 @@ if __name__ == '__main__':
                     terminate()
                 if a[pygame.K_e] and not player.killed:
                     player.interact(checkpoint_group)
+                if a[pygame.K_f]:
+                    player.shoot()
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a] and not player.killed:
@@ -963,6 +999,9 @@ if __name__ == '__main__':
         camera.update(player)
 
         for i in enemies:
+            i.update()
+
+        for i in bullet_group:
             i.update()
 
         for sprite in all_sprites:

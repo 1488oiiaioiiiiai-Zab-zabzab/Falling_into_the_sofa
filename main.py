@@ -446,6 +446,92 @@ class Walkingsoul(pygame.sprite.Sprite):
             player.take_damage(self.damage)
 
 
+class YuraMob(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y, hp, damage):
+        super().__init__(all_sprites, enemy_group, enter_box)
+        self.image1 = load_image("enemies/YuraMob/YuraModIdel.png")
+        self.image = pygame.transform.scale(self.image1, (player_width, player_height))
+        self.pos_x = pos_x
+        self.pos_y = pos_y
+        self.pos_x_current = pos_x
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.player_rect_x = 0
+        self.health = hp
+        self.killed = False
+        self.hurt_frame_index = 0
+        self.hurt_frame_counter = 0
+        self.hurt_frame_delay = 5
+        self.is_hurt = False
+        self.hurt_images = [pygame.transform.scale(load_image("enemies/YuraMob/YuraModGetDamage.png"),
+                                                   (player_width, player_height)),
+                            pygame.transform.scale(load_image("enemies/YuraMob/YuraModGetDamage.png"),
+                                                   (player_width, player_height))
+                            ]
+        self.frame_index = 0
+        self.frame_delay = 20
+        self.frame_counter = 0
+        self.stand_frames = [pygame.transform.scale(load_image("enemies/YuraMob/YuraModIdel.png"),
+                                                    (player_width, player_height)),
+                             pygame.transform.scale(load_image("enemies/YuraMob/YuraModIdel2.png"),
+                                                    (player_width, player_height))]
+        self.direction = 1
+        self.damage = damage
+
+    def take_damage(self, amount):
+        self.health -= amount
+        if self.health <= 0:
+            self.killed = True
+        else:
+            self.is_hurt = True
+
+    def update(self):
+        #  self.move()
+        if self.killed:
+            self.image = pygame.transform.scale(load_image("empty.png"),
+                                                (player_width, player_height))
+        elif self.is_hurt:
+            self.animate_hurt()
+        else:
+            self.animate_standing()
+
+    def animate_hurt(self):
+        self.hurt_frame_counter += 1
+        if self.hurt_frame_counter >= self.hurt_frame_delay:
+            self.hurt_frame_counter = 0
+            self.hurt_frame_index += 1
+
+            if self.hurt_frame_index < len(self.hurt_images):
+                self.image = self.hurt_images[self.hurt_frame_index]
+            else:
+                self.hurt_frame_index = 0
+                self.is_hurt = False
+
+    def animate_standing(self):
+        self.frame_counter += 1
+        if self.frame_counter >= self.frame_delay:
+            self.frame_counter = 0
+            self.frame_index = (self.frame_index + 1) % len(self.stand_frames)
+            self.current_frame = self.stand_frames[self.frame_index]
+            if self.direction == -1:
+                self.image = pygame.transform.flip(self.current_frame, True, False)
+            else:
+                self.image = self.current_frame
+
+    def event(self):
+        if pygame.sprite.collide_mask(self, player) and not self.killed:
+            player.take_damage(self.damage)
+
+    def move(self):
+        if self.rect.x >= (6387 + 100) - (6387 - self.rect.x):
+            self.direction = -2
+        elif self.rect.x <= (6387 - 100) - (6387 - self.rect.x):
+            self.direction = 2
+        self.rect.x += (self.direction * 300) // FPS
+
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(player_group, all_sprites)
@@ -696,6 +782,8 @@ def generate_level(level):
                 enemies.append(TrainingDummy(x, y))
             elif level[y][x] == "$":
                 enemies.append(Walkingsoul(x, y, 1000, 50))
+            elif level[y][x] == 'Y':
+                enemies.append(YuraMob(x, y, 2000, 500))
             elif level[y][x] == "&":
                 enemies.append(Walkingsoul(x, y, 1200, 80))
             elif level[y][x] == '@':

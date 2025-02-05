@@ -791,7 +791,7 @@ class Bullet(pygame.sprite.Sprite):
                 self.kill()
 
         for enemy in enemy_group:
-            if pygame.sprite.collide_mask(self, enemy):
+            if pygame.sprite.collide_mask(self, enemy) and not enemy.killed:
                 enemy.take_damage(self.dmg)
                 self.kill()
 

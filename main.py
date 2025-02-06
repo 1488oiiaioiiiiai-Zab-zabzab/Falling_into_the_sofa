@@ -784,10 +784,19 @@ class Player(pygame.sprite.Sprite):
 
     def dash(self):
         if self.direction == -1:
-            self.rect.x -= self.dash_velocity
-        elif self.direction == 1:
-            self.rect.x += self.dash_velocity
+            old_rect = self.rect.copy()
 
+            self.rect.x -= self.dash_velocity
+            for tile in tiles_group:
+                if pygame.sprite.collide_mask(self, tile) or self.rect.x < -200:
+                    self.rect.x = old_rect.x
+        elif self.direction == 1:
+            old_rect = self.rect.copy()
+
+            self.rect.x += self.dash_velocity
+            for tile in tiles_group:
+                if pygame.sprite.collide_mask(self, tile) or self.rect.x < -200:
+                    self.rect.x = old_rect.x
         if pygame.time.get_ticks() - self.dash_start_time > self.dash_duration:
             self.is_dashing = False
 

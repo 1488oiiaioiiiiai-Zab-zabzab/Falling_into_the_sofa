@@ -610,6 +610,20 @@ class Player(pygame.sprite.Sprite):
         self.last_shot_time = 0
         self.shoot_delay = 1500
 
+        self.last_dash_time = 0
+        self.dash_cooldown = 2000
+        self.is_dashing = False
+        self.dash_duration = 300
+        self.dash_velocity = 20
+        self.dash_start_time = 0
+
+        self.dash_animation = [pygame.transform.scale(load_image("player/dash_animation/charakterspritedash1.png"),
+                                                      (player_width, player_height)),
+                               pygame.transform.scale(load_image("player/dash_animation/charakterspritedash2.png"),
+                                                      (player_width, player_height))
+                               ]
+        self.current_dash_frame = 0
+
     def move(self, dx, dy, tiles):
         if dx < 0:
             self.direction = -1
@@ -650,6 +664,8 @@ class Player(pygame.sprite.Sprite):
             self.hurt_delay_counter += 1
         if self.is_hurt:
             self.animate_hurt()
+        elif self.is_dashing:
+            self.dash()
         elif self.is_attacking:
             self.animate_attack()
         elif self.on_ground and not self.is_move:
@@ -728,13 +744,14 @@ class Player(pygame.sprite.Sprite):
                 enemy.take_damage(10)
 
     def take_damage(self, amount):
-        if self.hurt_delay < self.hurt_delay_counter:
-            self.hurt_delay_counter = 0
-            if self.hp - amount <= 0:
-                self.killed = True
-            else:
-                self.is_hurt = True
-                self.hp -= amount
+        if not self.is_dashing:
+            if self.hurt_delay < self.hurt_delay_counter:
+                self.hurt_delay_counter = 0
+                if self.hp - amount <= 0:
+                    self.killed = True
+                else:
+                    self.is_hurt = True
+                    self.hp -= amount
 
     def animate_hurt(self):
         self.hurt_frame_counter += 1
@@ -756,6 +773,32 @@ class Player(pygame.sprite.Sprite):
         if current_time - self.last_shot_time >= self.shoot_delay:
             Bullet(self.rect.centerx, self.rect.centery, 250, self.direction)
             self.last_shot_time = current_time
+
+    def start_dash(self):
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_dash_time >= self.dash_cooldown and not self.is_dashing:
+            self.is_dashing = True
+            self.dash_start_time = current_time
+            self.last_dash_time = current_time
+            self.current_dash_frame = 0
+
+    def dash(self):
+        if self.direction == -1:
+            self.rect.x -= self.dash_velocity
+        elif self.direction == 1:
+            self.rect.x += self.dash_velocity
+
+        if pygame.time.get_ticks() - self.dash_start_time > self.dash_duration:
+            self.is_dashing = False
+
+        self.current_dash_frame += 1
+        if self.current_dash_frame >= len(self.dash_animation):
+            self.current_dash_frame = 0
+        if self.hurt_frame_index < len(self.dash_animation):
+            if self.direction == -1:
+                self.image = pygame.transform.flip(self.dash_animation[self.current_dash_frame], True, False)
+            else:
+                self.image = self.dash_animation[self.current_dash_frame]
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -994,6 +1037,8 @@ if __name__ == '__main__':
                     player.interact(checkpoint_group)
                 if a[pygame.K_f]:
                     player.shoot()
+                if a[pygame.K_LSHIFT] or a[pygame.K_RSHIFT]:
+                    player.start_dash()
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a] and not player.killed:

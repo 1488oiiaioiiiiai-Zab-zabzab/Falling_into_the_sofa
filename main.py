@@ -248,11 +248,15 @@ def load_level(filename):
 class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tiles_group, all_sprites)
+        self.tile_type = tile_type
         self.image1 = tile_images[tile_type]
         self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.mask = pygame.mask.from_surface(self.image)
+
+    def type(self):
+        return self.tile_type
 
 
 class MusicBox(pygame.sprite.Sprite):
@@ -549,7 +553,7 @@ class Player(pygame.sprite.Sprite):
         self.frame_counter = 0
         self.gravity = 0.5
         self.velocity_y = 0
-        self.on_ground = False
+        self.on_ground = True
         self.is_move = False
         self.stand_frames = [
             pygame.transform.scale(load_image("player/idle_animation/charakterspriteanimationidle1.png"),
@@ -640,24 +644,39 @@ class Player(pygame.sprite.Sprite):
 
     def jump(self):
         if self.on_ground:
-            self.velocity_y = -2.2 * size_cof
+            self.velocity_y = -5.5 * size_cof
+            self.on_ground = False
+
 
     def power_of_gravity(self, tiles):
-        self.velocity_y += self.gravity
         self.rect.y += self.velocity_y
-        old_rect = self.rect.copy()
+        self.rect.y += self.gravity
+        self.velocity_checker(tiles)
 
-        self.on_ground = False
-        for tile in tiles:
-            if pygame.sprite.collide_mask(self, tile):
-                if self.velocity_y > 0:
-                    self.rect.bottom = tile.rect.top
-                    self.on_ground = True
+
+    def velocity_checker(self, sprites):
+        if self.rect.y + self.velocity_y >= self.rect.y:
+            is_floor = False
+            for sprite in sprites:
+                if pygame.sprite.collide_mask(self, sprite):
+                    if not self.on_ground:
+                        self.on_ground = True
                     self.velocity_y = 0
-                else:
-                    self.rect.y = old_rect.y
-        if not self.on_ground:
-            self.rect.y += self.velocity_y
+                    self.rect.bottom = sprite.rect.top
+                    is_floor = True
+                    break
+            if not is_floor:
+                self.on_ground = False
+                self.velocity_y += self.gravity
+        else:
+            for sprite in sprites:
+                if pygame.sprite.collide_mask(self, sprite):
+                    if sprite.type() != 'pass_step_tile':
+                        self.velocity_y = 2.2 * size_cof
+                        self.rect.top = sprite.rect.bottom + 1
+                        break
+            self.velocity_y += self.gravity
+
 
     def update(self, boxes):
         if self.hurt_delay_counter <= 10:
@@ -881,6 +900,8 @@ def generate_level(level):
                 Tile('floor', x, y)
             elif level[y][x] == "T":
                 Tile("towerrock", x, y)
+            elif level[y][x] == '-':
+                Tile('pass_step_tile', x, y)
             elif level[y][x] == "=":
                 enemies.append(TrainingDummy(x, y))
             elif level[y][x] == "$":
@@ -1007,7 +1028,8 @@ if __name__ == '__main__':
 
     tile_width = tile_height = (height + width) // (256 / size_cof)  # изменение размера спрайтов под подходящий
 
-    tile_images = {'floor': load_image("tiles/floor.png"), "towerrock": load_image("tiles/towerrock.png")}
+    tile_images = {'floor': load_image("tiles/floor.png"), "towerrock": load_image("tiles/towerrock.png"),
+                   "pass_step_tile": load_image("tiles/Y_tile.png")}
 
     player_width = player_height = (height + width) // (64 / size_cof)  # изменение размера игрока
 

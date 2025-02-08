@@ -835,7 +835,7 @@ class Bullet(pygame.sprite.Sprite):
     def update(self):
         self.rect.x += self.velocity // FPS
 
-        if pygame.time.get_ticks() - self.creation_time > 2000:
+        if pygame.time.get_ticks() - self.creation_time > 1500:
             self.kill()
 
         for tile in tiles_group:

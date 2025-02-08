@@ -629,6 +629,24 @@ class Player(pygame.sprite.Sprite):
         self.current_dash_frame = 0
 
     def move(self, dx, dy, tiles):
+        """if dx < 0:
+            self.direction = -1
+        elif dx > 0:
+            self.direction = 1
+
+        # old_rect = self.rect.copy()
+        stop = False
+        for tile in tiles:
+            if type(sprite) == Tile:
+                if sprite.type() != 'tower_brick':
+                    if pygame.sprite.collide_mask(self, tile) or self.rect.x < -200:
+                        stop = True
+                        # self.rect.x = old_rect.x
+                        q = 0
+                        break
+        if not stop:
+            q = dx // FPS
+        self.rect.x += q  # dx // FPS"""
         if dx < 0:
             self.direction = -1
         elif dx > 0:
@@ -638,7 +656,8 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.x += dx // FPS
         for tile in tiles:
-            if pygame.sprite.collide_mask(self, tile) or self.rect.x < -200:
+            if (pygame.sprite.collide_mask(self, tile) or self.rect.x < -200) and tile.type() != 'tower_brick'\
+                    and type(tile) == Tile:
                 self.rect.x = old_rect.x
                 break
 
@@ -659,22 +678,25 @@ class Player(pygame.sprite.Sprite):
             is_floor = False
             for sprite in sprites:
                 if pygame.sprite.collide_mask(self, sprite):
-                    if not self.on_ground:
-                        self.on_ground = True
-                    self.velocity_y = 0
-                    self.rect.bottom = sprite.rect.top
-                    is_floor = True
-                    break
+                    if type(sprite) == Tile:
+                        if not sprite.type() == 'tower_brick':
+                            if not self.on_ground:
+                                self.on_ground = True
+                            self.velocity_y = 0
+                            self.rect.bottom = sprite.rect.top
+                            is_floor = True
+                            break
             if not is_floor:
                 self.on_ground = False
                 self.velocity_y += self.gravity
         else:
             for sprite in sprites:
                 if pygame.sprite.collide_mask(self, sprite):
-                    if sprite.type() != 'pass_step_tile':
-                        self.velocity_y = 2.2 * size_cof
-                        self.rect.top = sprite.rect.bottom + 1
-                        break
+                    if type(sprite) == Tile:
+                        if sprite.type() != 'tower_brick' and sprite.type() != 'pass_step_tile':
+                            self.velocity_y = 2.2 * size_cof
+                            self.rect.top = sprite.rect.bottom + 1
+                            break
             self.velocity_y += self.gravity
 
 
@@ -858,9 +880,8 @@ class Bullet(pygame.sprite.Sprite):
             self.kill()
 
         for tile in tiles_group:
-            if pygame.sprite.collide_mask(self, tile):
+            if pygame.sprite.collide_mask(self, tile) and type(tile) == Tile and tile.type() != "tower_brick":
                 self.kill()
-
         for enemy in enemy_group:
             if pygame.sprite.collide_mask(self, enemy) and not enemy.killed:
                 enemy.take_damage(self.dmg)
@@ -902,14 +923,22 @@ def generate_level(level):
                 Tile("towerrock", x, y)
             elif level[y][x] == '-':
                 Tile('pass_step_tile', x, y)
+            elif level[y][x] == '/':
+                Tile("tower_brick", x, y)
             elif level[y][x] == "=":
                 enemies.append(TrainingDummy(x, y))
             elif level[y][x] == "$":
                 enemies.append(Walkingsoul(x, y, 1000, 50))
             elif level[y][x] == 'Y':
                 enemies.append(YuraMob(x, y, 2000, 500, 300))
-            elif level[y][x] == "&":
+            elif level[y][x] == 'y':
+                enemies.append(YuraMob(x, y, 2000, 500, 300))
+                Tile("tower_brick", x, y)
+            elif level[y][x] == "S":
                 enemies.append(Walkingsoul(x, y, 1200, 80))
+            elif level[y][x] == "s":
+                enemies.append(Walkingsoul(x, y, 1200, 80))
+                Tile("tower_brick", x, y)
             elif level[y][x] == '@':
                 con = sqlite3.connect("gamedata.db")
 
@@ -1029,7 +1058,7 @@ if __name__ == '__main__':
     tile_width = tile_height = (height + width) // (256 / size_cof)  # изменение размера спрайтов под подходящий
 
     tile_images = {'floor': load_image("tiles/floor.png"), "towerrock": load_image("tiles/towerrock.png"),
-                   "pass_step_tile": load_image("tiles/Y_tile.png")}
+                   "pass_step_tile": load_image("tiles/Y_tile.png"), "tower_brick": load_image("tiles/tower_brick.png")}
 
     player_width = player_height = (height + width) // (64 / size_cof)  # изменение размера игрока
 
@@ -1087,17 +1116,23 @@ if __name__ == '__main__':
         player.update(enter_box)
         camera.update(player)
 
+        for sprite in all_sprites:
+            camera.apply(sprite)
+
         for i in enemies:
             i.update()
 
         for i in bullet_group:
             i.update()
-
-        for sprite in all_sprites:
-            camera.apply(sprite)
         screen.fill(pygame.Color((50, 39, 30)))
+        tiles_group.draw(screen) # тайлы
+        enemy_group.draw(screen) # враги
+        checkpoint_group.draw(screen) # чекпоинты
+        enter_box.draw(screen) # группа спрайтов которые вызывают какую-то функцию если игрок в прямоугольнике
+        player_group.draw(screen)  # игрок
+        bullet_group.draw(screen)  # группа спрайтов снарядов
         camera.draw_health()
-        all_sprites.draw(screen)
+        # all_sprites.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)
     pygame.quit()

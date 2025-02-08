@@ -6,7 +6,7 @@ import pygame
 
 FPS = 60
 CURRENTSAVESLOT = 0
-currentmusic = "data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3"
+currentmusic = "data/music/Instupendo - Comfort Chain.mp3"
 
 
 def getalldatafromsaveslot(slotnumber):
@@ -889,6 +889,8 @@ def generate_level(level):
                 enemies.append(YuraMob(x, y, 2000, 500, 300))
             elif level[y][x] == "&":
                 enemies.append(Walkingsoul(x, y, 1200, 80))
+            elif level[y][x] == "?":  # получить координаты места если нужно поставить обьект вручную
+                print(x, y)
             elif level[y][x] == '@':
                 con = sqlite3.connect("gamedata.db")
 
@@ -911,10 +913,12 @@ def generate_level(level):
             elif level[y][x] == "1":
                 Checkpoint(x, y, "тренеровка")
             elif level[y][x] == "2":
-                Checkpoint(x, y, "вход в башню", "data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3")
+                Checkpoint(x, y, "вход в башню", "data/music/Instupendo - Comfort Chain.mp3")
             elif level[y][x] == "3":
                 Checkpoint(x, y, "этаж 2", "data/music/Destroyed Realities - EXISTENTIA (Arrangement).mp3")
-    MusicBox("data/music/Destroyed Realities - EXISTENTIA (Arrangement).mp3", 167, 15)
+            elif level[y][x] == "4":
+                Checkpoint(x, y, "этаж 3", "data/music/Underverse OST - OVERWRITE [XChara's Theme].mp3")
+    MusicBox("data/music/Destroyed Realities - EXISTENTIA (Arrangement).mp3", 165, 23)
     return new_player, x, y, enemies
 
 
@@ -1020,7 +1024,7 @@ if __name__ == '__main__':
     player_speed = 800
     clock = pygame.time.Clock()
 
-    pygame.mixer.music.load("data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3")
+    pygame.mixer.music.load("data/music/Instupendo - Comfort Chain.mp3")
     pygame.mixer.music.play(-1)
     pygame.mixer.music.set_volume(0.2)
 

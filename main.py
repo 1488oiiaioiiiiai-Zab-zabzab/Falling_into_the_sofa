@@ -736,7 +736,6 @@ class Player(pygame.sprite.Sprite):
     def m1atk(self):
         if not self.is_attacking:
             self.is_attacking = True
-            self.ultimate_charge += 0.5
             self.attack_frame_index = 0
 
     def animate_attack(self):
@@ -766,6 +765,7 @@ class Player(pygame.sprite.Sprite):
         hitbox = pygame.Rect(position, size)
         for enemy in enemy_group:
             if hitbox.colliderect(enemy.rect):
+                self.ultimate_charge += 0.5
                 enemy.take_damage(10)
 
     def take_damage(self, amount):

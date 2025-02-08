@@ -448,6 +448,79 @@ class Walkingsoul(pygame.sprite.Sprite):
             player.take_damage(self.damage)
 
 
+class Ponosium(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y, hp, damage):
+        super().__init__(all_sprites, enemy_group, enter_box)
+        self.image1 = load_image("enemies/ponosium/ponosium1.png")
+        self.image = pygame.transform.scale(self.image1, (pon_width, pon_height))
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.health = hp
+        self.killed = False
+        self.hurt_frame_index = 0
+        self.hurt_frame_counter = 0
+        self.hurt_frame_delay = 5
+        self.is_hurt = False
+        self.hurt_images = [pygame.transform.scale(load_image("enemies/ponosium/ponosium1.png"),
+                                                   (pon_width, pon_height)),
+                            pygame.transform.scale(load_image("enemies/ponosium/ponosiumhurt.png"),
+                                                   (pon_width, pon_height))
+                            ]
+        self.frame_index = 0
+        self.frame_delay = 10
+        self.frame_counter = 0
+        self.stand_frames = [pygame.transform.scale(load_image("enemies/ponosium/ponosium1.png"),
+                                                    (pon_width, pon_height)),
+                             pygame.transform.scale(load_image("enemies/ponosium/ponosium2.png"),
+                                                    (pon_width, pon_height))]
+        self.direction = 1
+        self.damage = damage
+
+    def take_damage(self, amount):
+        self.health -= amount
+        if self.health <= 0:
+            self.killed = True
+        else:
+            self.is_hurt = True
+
+    def update(self):
+        if self.killed:
+            self.image = pygame.transform.scale(load_image("empty.png"),
+                                                (player_width, player_height))
+        elif self.is_hurt:
+            self.animate_hurt()
+        else:
+            self.animate_standing()
+
+    def animate_hurt(self):
+        self.hurt_frame_counter += 1
+        if self.hurt_frame_counter >= self.hurt_frame_delay:
+            self.hurt_frame_counter = 0
+            self.hurt_frame_index += 1
+
+            if self.hurt_frame_index < len(self.hurt_images):
+                self.image = self.hurt_images[self.hurt_frame_index]
+            else:
+                self.hurt_frame_index = 0
+                self.is_hurt = False
+
+    def animate_standing(self):
+        self.frame_counter += 1
+        if self.frame_counter >= self.frame_delay:
+            self.frame_counter = 0
+            self.frame_index = (self.frame_index + 1) % len(self.stand_frames)
+            self.current_frame = self.stand_frames[self.frame_index]
+            if self.direction == -1:
+                self.image = pygame.transform.flip(self.current_frame, True, False)
+            else:
+                self.image = self.current_frame
+
+    def event(self):
+        if pygame.sprite.collide_mask(self, player) and not self.killed:
+            player.take_damage(self.damage)
+
+
 class YuraMob(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, hp, damage, speed):
         super().__init__(all_sprites, enemy_group, enter_box)
@@ -977,6 +1050,11 @@ def generate_level(level):
             elif level[y][x] == "s":
                 enemies.append(Walkingsoul(x, y, 1200, 80))
                 Tile("tower_brick", x, y)
+            elif level[y][x] == "p":
+                enemies.append(Ponosium(x, y, 20000, 500))
+                Tile("tower_brick", x, y)
+            elif level[y][x] == "P":
+                enemies.append(Ponosium(x, y, 20000, 500))
             elif level[y][x] == '@':
                 con = sqlite3.connect("gamedata.db")
 
@@ -1104,6 +1182,8 @@ if __name__ == '__main__':
 
     ultimate_width = ultimate_height = (height + width) // (96 / size_cof)  # изменение размера игрока
     player_image = load_image('player/maincharacter.png')
+
+    pon_width = pon_height = (height + width) // (32 / size_cof)  # изменение размера игрока
 
     camera = Camera()
 

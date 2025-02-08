@@ -917,7 +917,6 @@ class Ultimate(pygame.sprite.Sprite):
             if pygame.sprite.collide_mask(self, enemy) and not enemy.killed:
                 enemy.is_hurt = True
                 enemy.take_damage(self.dmg)
-                self.kill()
 
 
 class Camera:

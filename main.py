@@ -548,6 +548,7 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.mask = pygame.mask.from_surface(self.image)
+        self.ultimate_charge = 0
         self.frame_index = 0
         self.frame_delay = 10
         self.frame_counter = 0
@@ -629,24 +630,6 @@ class Player(pygame.sprite.Sprite):
         self.current_dash_frame = 0
 
     def move(self, dx, dy, tiles):
-        """if dx < 0:
-            self.direction = -1
-        elif dx > 0:
-            self.direction = 1
-
-        # old_rect = self.rect.copy()
-        stop = False
-        for tile in tiles:
-            if type(sprite) == Tile:
-                if sprite.type() != 'tower_brick':
-                    if pygame.sprite.collide_mask(self, tile) or self.rect.x < -200:
-                        stop = True
-                        # self.rect.x = old_rect.x
-                        q = 0
-                        break
-        if not stop:
-            q = dx // FPS
-        self.rect.x += q  # dx // FPS"""
         if dx < 0:
             self.direction = -1
         elif dx > 0:
@@ -753,6 +736,7 @@ class Player(pygame.sprite.Sprite):
     def m1atk(self):
         if not self.is_attacking:
             self.is_attacking = True
+            self.ultimate_charge += 0.5
             self.attack_frame_index = 0
 
     def animate_attack(self):
@@ -814,6 +798,11 @@ class Player(pygame.sprite.Sprite):
         if current_time - self.last_shot_time >= self.shoot_delay:
             Bullet(self.rect.centerx, self.rect.centery, 250, self.direction)
             self.last_shot_time = current_time
+
+    def ultimate(self):
+        if self.ultimate_charge >= 5:
+            Ultimate(self.rect.centerx, self.rect.centery, 750, self.direction)
+            self.ultimate_charge = 0
 
     def start_dash(self):
         current_time = pygame.time.get_ticks()
@@ -877,6 +866,43 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.x += self.velocity // FPS
 
         if pygame.time.get_ticks() - self.creation_time > 2000:
+            self.kill()
+
+        for tile in tiles_group:
+            if pygame.sprite.collide_mask(self, tile) and type(tile) == Tile and tile.type() != "tower_brick":
+                self.kill()
+        for enemy in enemy_group:
+            if pygame.sprite.collide_mask(self, enemy) and not enemy.killed:
+                enemy.take_damage(self.dmg)
+                player.ultimate_charge += 1
+                self.kill()
+
+class Ultimate(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y, dmg, direction):
+        super().__init__(bullet_group, all_sprites)
+        self.image1 = load_image("attack_effects/ultimate.png")
+        self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
+        self.rect = self.image.get_rect().move(pos_x, pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.direction = direction
+        speed = player_speed * 3
+        self.dmg = dmg
+
+        if self.direction == -1:
+            self.image = pygame.transform.flip(pygame.transform.scale(self.image1, (tile_width, tile_height)),
+                                               True,
+                                               False)
+            self.velocity = -speed
+        elif self.direction == 1:
+            self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
+            self.velocity = speed
+
+        self.creation_time = pygame.time.get_ticks()
+
+    def update(self):
+        self.rect.x += self.velocity // FPS
+
+        if pygame.time.get_ticks() - self.creation_time > 4000:
             self.kill()
 
         for tile in tiles_group:
@@ -1097,6 +1123,8 @@ if __name__ == '__main__':
                     player.interact(checkpoint_group)
                 if a[pygame.K_f]:
                     player.shoot()
+                if a[pygame.K_r]:
+                    player.ultimate()
                 if a[pygame.K_LSHIFT] or a[pygame.K_RSHIFT]:
                     player.start_dash()
 

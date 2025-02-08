@@ -6,7 +6,7 @@ import pygame
 
 FPS = 60
 CURRENTSAVESLOT = 0
-currentmusic = "data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3"
+currentmusic = "data/music/Instupendo - Comfort Chain.mp3"
 
 
 def getalldatafromsaveslot(slotnumber):
@@ -638,7 +638,7 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.x += dx // FPS
         for tile in tiles:
-            if (pygame.sprite.collide_mask(self, tile) or self.rect.x < -200) and tile.type() != 'tower_brick'\
+            if (pygame.sprite.collide_mask(self, tile) or self.rect.x < -200) and tile.type() != 'tower_brick' \
                     and type(tile) == Tile:
                 self.rect.x = old_rect.x
                 break
@@ -648,12 +648,10 @@ class Player(pygame.sprite.Sprite):
             self.velocity_y = -5.5 * size_cof
             self.on_ground = False
 
-
     def power_of_gravity(self, tiles):
         self.rect.y += self.velocity_y
         self.rect.y += self.gravity
         self.velocity_checker(tiles)
-
 
     def velocity_checker(self, sprites):
         if self.rect.y + self.velocity_y >= self.rect.y:
@@ -680,7 +678,6 @@ class Player(pygame.sprite.Sprite):
                             self.rect.top = sprite.rect.bottom + 1
                             break
             self.velocity_y += self.gravity
-
 
     def update(self, boxes):
         if self.hurt_delay_counter <= 10:
@@ -882,6 +879,7 @@ class Bullet(pygame.sprite.Sprite):
                 player.ultimate_charge += 1
                 self.kill()
 
+
 class Ultimate(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, dmg, direction):
         super().__init__(bullet_group, all_sprites)
@@ -1000,10 +998,12 @@ def generate_level(level):
             elif level[y][x] == "1":
                 Checkpoint(x, y, "тренеровка")
             elif level[y][x] == "2":
-                Checkpoint(x, y, "вход в башню", "data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3")
+                Checkpoint(x, y, "вход в башню",
+                           "data/music/Destroyed Realities - EXISTENTIA (Arrangement).mp3")
             elif level[y][x] == "3":
                 Checkpoint(x, y, "этаж 2", "data/music/Destroyed Realities - EXISTENTIA (Arrangement).mp3")
-    MusicBox("data/music/Destroyed Realities - EXISTENTIA (Arrangement).mp3", 167, 15)
+            elif level[y][x] == "4":
+                Checkpoint(x, y, "этаж 3", "data/music/Underverse OST - OVERWRITE [XChara's Theme].mp3")
     return new_player, x, y, enemies
 
 
@@ -1111,7 +1111,7 @@ if __name__ == '__main__':
     player_speed = 800
     clock = pygame.time.Clock()
 
-    pygame.mixer.music.load("data/music/𝘾𝙃𝙀𝙎𝙎 𝙏𝙔𝙋𝙀 𝘽𝙀𝘼𝙏 (𝙎𝙇𝙊𝙒𝙀𝘿).mp3")
+    pygame.mixer.music.load("data/music/Instupendo - Comfort Chain.mp3")
     pygame.mixer.music.play(-1)
     pygame.mixer.music.set_volume(0.2)
 
@@ -1167,10 +1167,10 @@ if __name__ == '__main__':
         for i in bullet_group:
             i.update()
         screen.fill(pygame.Color((50, 39, 30)))
-        tiles_group.draw(screen) # тайлы
-        enemy_group.draw(screen) # враги
-        checkpoint_group.draw(screen) # чекпоинты
-        enter_box.draw(screen) # группа спрайтов которые вызывают какую-то функцию если игрок в прямоугольнике
+        tiles_group.draw(screen)  # тайлы
+        enemy_group.draw(screen)  # враги
+        checkpoint_group.draw(screen)  # чекпоинты
+        enter_box.draw(screen)  # группа спрайтов которые вызывают какую-то функцию если игрок в прямоугольнике
         player_group.draw(screen)  # игрок
         bullet_group.draw(screen)  # группа спрайтов снарядов
         camera.draw_info()

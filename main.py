@@ -352,8 +352,6 @@ class TrainingDummy(pygame.sprite.Sprite):
         self.health -= amount
         if self.health <= 0:
             self.killed = True
-        else:
-            self.is_hurt = True
 
     def update(self):
         if self.killed:
@@ -549,6 +547,7 @@ class Player(pygame.sprite.Sprite):
             tile_width * pos_x, tile_height * pos_y)
         self.mask = pygame.mask.from_surface(self.image)
         self.ultimate_charge = 0
+        self.enemy_attacked = set()
         self.frame_index = 0
         self.frame_delay = 10
         self.frame_counter = 0
@@ -735,6 +734,7 @@ class Player(pygame.sprite.Sprite):
 
     def m1atk(self):
         if not self.is_attacking:
+            self.enemy_attacked.clear()
             self.is_attacking = True
             self.attack_frame_index = 0
 
@@ -744,6 +744,9 @@ class Player(pygame.sprite.Sprite):
             self.attack_frame_counter = 0
             self.attack_frame_index += 1
             if self.attack_frame_index >= len(self.attack_frames):
+                for enemy in self.enemy_attacked:
+                    enemy.take_damage(100)
+                    self.ultimate_charge += 0.5
                 self.is_attacking = False
                 self.attack_frame_index = 0
             else:
@@ -765,8 +768,9 @@ class Player(pygame.sprite.Sprite):
         hitbox = pygame.Rect(position, size)
         for enemy in enemy_group:
             if hitbox.colliderect(enemy.rect):
-                self.ultimate_charge += 0.5
-                enemy.take_damage(10)
+                if not enemy.killed:
+                    self.enemy_attacked.add(enemy)
+                    enemy.is_hurt = True
 
     def take_damage(self, amount):
         if not self.is_dashing:
@@ -801,7 +805,7 @@ class Player(pygame.sprite.Sprite):
 
     def ultimate(self):
         if self.ultimate_charge >= 5:
-            Ultimate(self.rect.centerx, self.rect.centery, 750, self.direction)
+            Ultimate(self.rect.x, self.rect.y, 750, self.direction)
             self.ultimate_charge = 0
 
     def start_dash(self):
@@ -874,6 +878,7 @@ class Bullet(pygame.sprite.Sprite):
         for enemy in enemy_group:
             if pygame.sprite.collide_mask(self, enemy) and not enemy.killed:
                 enemy.take_damage(self.dmg)
+                enemy.is_hurt = True
                 player.ultimate_charge += 1
                 self.kill()
 
@@ -881,7 +886,7 @@ class Ultimate(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, dmg, direction):
         super().__init__(bullet_group, all_sprites)
         self.image1 = load_image("attack_effects/ultimate.png")
-        self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
+        self.image = pygame.transform.scale(self.image1, (ultimate_width, ultimate_height))
         self.rect = self.image.get_rect().move(pos_x, pos_y)
         self.mask = pygame.mask.from_surface(self.image)
         self.direction = direction
@@ -889,12 +894,12 @@ class Ultimate(pygame.sprite.Sprite):
         self.dmg = dmg
 
         if self.direction == -1:
-            self.image = pygame.transform.flip(pygame.transform.scale(self.image1, (tile_width, tile_height)),
+            self.image = pygame.transform.flip(pygame.transform.scale(self.image1, (ultimate_width, ultimate_height)),
                                                True,
                                                False)
             self.velocity = -speed
         elif self.direction == 1:
-            self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
+            self.image = pygame.transform.scale(self.image1, (ultimate_width, ultimate_height))
             self.velocity = speed
 
         self.creation_time = pygame.time.get_ticks()
@@ -910,6 +915,7 @@ class Ultimate(pygame.sprite.Sprite):
                 self.kill()
         for enemy in enemy_group:
             if pygame.sprite.collide_mask(self, enemy) and not enemy.killed:
+                enemy.is_hurt = True
                 enemy.take_damage(self.dmg)
                 self.kill()
 
@@ -927,13 +933,20 @@ class Camera:
         self.dx = -(target.rect.x + target.rect.w // 2 - width // 2)
         self.dy = -(target.rect.y + target.rect.h // 2 - height // 2)
 
-    def draw_health(self):
+    def draw_info(self):
         health_text = f"{player.hp}/1000"
-        text_surface = pygame.font.Font(None, 50).render(health_text, True, (255, 255, 255))
-        text_x = player.rect.x + (player.rect.w - text_surface.get_width()) // 2
-        text_y = player.rect.y - text_surface.get_height() - 5
-
-        screen.blit(text_surface, (text_x, text_y))
+        text_surface_health = pygame.font.Font(None, 50).render(health_text, True, (255, 255, 255))
+        text_x = player.rect.x + (player.rect.w - text_surface_health.get_width()) // 2
+        text_y = player.rect.y - text_surface_health.get_height() - 5
+        screen.blit(text_surface_health, (text_x, text_y))
+        if player.ultimate_charge < 5:
+            ultimate_text = f"{player.ultimate_charge}/5"
+        else:
+            ultimate_text = 'ульта заряжена'
+        text_surface_ultimate = pygame.font.Font(None, 30).render(ultimate_text, True, (255, 255, 255))
+        text_x = player.rect.x + (player.rect.w - text_surface_ultimate.get_width()) // 2
+        text_y = player.rect.y - text_surface_ultimate.get_height() - 5 - text_surface_health.get_height()
+        screen.blit(text_surface_ultimate, (text_x, text_y))
 
 
 def generate_level(level):
@@ -1088,6 +1101,7 @@ if __name__ == '__main__':
 
     player_width = player_height = (height + width) // (64 / size_cof)  # изменение размера игрока
 
+    ultimate_width = ultimate_height = (height + width) // (96 / size_cof)  # изменение размера игрока
     player_image = load_image('player/maincharacter.png')
 
     camera = Camera()
@@ -1159,7 +1173,7 @@ if __name__ == '__main__':
         enter_box.draw(screen) # группа спрайтов которые вызывают какую-то функцию если игрок в прямоугольнике
         player_group.draw(screen)  # игрок
         bullet_group.draw(screen)  # группа спрайтов снарядов
-        camera.draw_health()
+        camera.draw_info()
         # all_sprites.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)

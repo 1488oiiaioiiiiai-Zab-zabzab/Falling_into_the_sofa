@@ -3,6 +3,7 @@ import sqlite3
 import sys
 import cv2
 import pygame
+from random import randrange, shuffle
 
 FPS = 60
 CURRENTSAVESLOT = 0
@@ -522,19 +523,25 @@ class Ponosium(pygame.sprite.Sprite):
 
 
 class YuraMob(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y, hp, damage, speed):
+    def __init__(self, pos_x, pos_y, hp, collide_damage, attack_damage, speed):
         super().__init__(all_sprites, enemy_group, enter_box)
         self.image1 = load_image("enemies/YuraMob/YuraModIdel.png")
         self.image = pygame.transform.scale(self.image1, (player_width, player_height))
-        if speed % FPS != 0:
-            print('Скорость моба должна делиться нацело на FPS')
-            terminate()
-        self.speed = speed
-        self.pos_x = pos_x
-        self.pos_y = pos_y
-        self.pos_x_current = pos_x
+        self.ides = []
+        self.hits = 0
+        self.recharge = -228
+        self.recharge_limit = 900
+        self.speed = speed, 0
+        self.attack_time = -1488
+        self.attack_time_limit = randrange(500, 800, 20)
+        self.q = 0
+        self.ed = True
+        self.is_attacking = False
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
+        hitbox_size = hitbox_width, hitbox_height = player_width * 7, player_height
+        hitbox_coords = (tile_width * pos_x) - 3 * player_width, pos_y
+        self.hitbox = pygame.Rect(hitbox_coords, hitbox_size)
         self.count = 0
         self.mask = pygame.mask.from_surface(self.image)
         self.health = hp
@@ -555,8 +562,9 @@ class YuraMob(pygame.sprite.Sprite):
                                                     (player_width, player_height)),
                              pygame.transform.scale(load_image("enemies/YuraMob/YuraModIdel2.png"),
                                                     (player_width, player_height))]
-        self.direction = 1
-        self.damage = damage
+        self.direction = -1
+        self.collide_damage = collide_damage
+        self.attack_damage = attack_damage
 
     def take_damage(self, amount):
         self.health -= amount
@@ -567,6 +575,26 @@ class YuraMob(pygame.sprite.Sprite):
 
     def update(self):
         self.move()
+        if pygame.time.get_ticks() - self.recharge > self.recharge_limit:
+            self.recharge = -228
+        if not self.is_attacking and self.recharge == -228:
+            self.collide_checker()
+        if pygame.time.get_ticks() - self.attack_time > self.attack_time_limit and self.is_attacking:
+            fl = True
+            while fl:
+                id = list('1234567890!@#$%^&*()')
+                shuffle(id)
+                id = ''.join(id)
+                if id not in self.ides:
+                    fl = False
+                    self.ides.append(id)
+            Y_bullet(self.rect.centerx, self.rect.centery, self.attack_damage, self.direction, id)
+            self.q = 0
+            self.is_attacking = False
+            self.attack_time = -1488
+            self.attack_time_limit = randrange(500, 800, 200)
+            self.recharge = pygame.time.get_ticks()
+
         if self.killed:
             self.image = pygame.transform.scale(load_image("empty.png"),
                                                 (player_width, player_height))
@@ -600,15 +628,29 @@ class YuraMob(pygame.sprite.Sprite):
 
     def event(self):
         if pygame.sprite.collide_mask(self, player) and not self.killed:
-            player.take_damage(self.damage)
+            player.take_damage(self.collide_damage)
 
     def move(self):
-        if self.count == 60:
-            self.direction = -1
-        elif self.count == -60:
-            self.direction = 1
-        self.count += self.direction
-        self.rect.x += (self.direction * self.speed) // FPS
+        for tile in tiles_group:
+            if pygame.sprite.collide_rect(self, tile) and type(tile) == Tile and tile.type() == 'collide':
+                self.direction = 1 if self.direction == -1 else -1
+                break
+        self.rect.x += (self.direction * self.speed[self.q]) // FPS
+
+    def collide_checker(self):
+        if self.direction == -1:
+            hitbox_position = (self.rect.x - ((player_width // 3) * 3 + player_width), self.rect.y)
+            hitbox_size = (6 * tile_width, 20)
+        else:
+            hitbox_position = (self.rect.x + (player_width // 3) * 3, self.rect.y)
+            hitbox_size = (6 * tile_width, 20)
+        hitbox = pygame.Rect(hitbox_position, hitbox_size)
+        for player in player_group:
+            if hitbox.colliderect(player.rect):
+                self.is_attacking = True
+                self.attack_time = pygame.time.get_ticks()
+                self.q = 1
+                break
 
 
 class Player(pygame.sprite.Sprite):
@@ -711,8 +753,8 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.x += dx // FPS
         for tile in tiles:
-            if (pygame.sprite.collide_mask(self, tile) or self.rect.x < -200) and tile.type() != 'tower_brick' \
-                    and type(tile) == Tile:
+            if ((pygame.sprite.collide_mask(self, tile) or self.rect.x < -200) and type(tile) == Tile
+                    and tile.type() != 'tower_brick' and tile.type() != 'collide'):
                 self.rect.x = old_rect.x
                 break
 
@@ -732,7 +774,7 @@ class Player(pygame.sprite.Sprite):
             for sprite in sprites:
                 if pygame.sprite.collide_mask(self, sprite):
                     if type(sprite) == Tile:
-                        if not sprite.type() == 'tower_brick':
+                        if sprite.type() != 'tower_brick' and sprite.type() != 'collide':
                             if not self.on_ground:
                                 self.on_ground = True
                             self.velocity_y = 0
@@ -746,7 +788,8 @@ class Player(pygame.sprite.Sprite):
             for sprite in sprites:
                 if pygame.sprite.collide_mask(self, sprite):
                     if type(sprite) == Tile:
-                        if sprite.type() != 'tower_brick' and sprite.type() != 'pass_step_tile':
+                        if (sprite.type() != 'tower_brick' and sprite.type() != 'pass_step_tile'
+                                and sprite.type() != 'collide'):
                             self.velocity_y = 2.2 * size_cof
                             self.rect.top = sprite.rect.bottom + 1
                             break
@@ -875,7 +918,7 @@ class Player(pygame.sprite.Sprite):
 
     def ultimate(self):
         if self.ultimate_charge >= 5:
-            Ultimate(self.rect.x, self.rect.y, 750, self.direction)
+            Ultimate(self.rect.x, self.rect.y, 500, self.direction)
             self.ultimate_charge = 0
 
     def start_dash(self):
@@ -892,16 +935,16 @@ class Player(pygame.sprite.Sprite):
 
             self.rect.x -= self.dash_velocity
             for tile in tiles_group:
-                if (pygame.sprite.collide_mask(self, tile) or self.rect.x < -200) and tile.type() != 'tower_brick' \
-                    and type(tile) == Tile:
+                if ((pygame.sprite.collide_mask(self, tile) or self.rect.x < -200) and type(tile) == Tile
+                        and tile.type() != 'tower_brick' and tile.type() != 'collide'):
                     self.rect.x = old_rect.x
         elif self.direction == 1:
             old_rect = self.rect.copy()
 
             self.rect.x += self.dash_velocity
             for tile in tiles_group:
-                if (pygame.sprite.collide_mask(self, tile) or self.rect.x < -200) and tile.type() != 'tower_brick' \
-                    and type(tile) == Tile:
+                if ((pygame.sprite.collide_mask(self, tile) or self.rect.x < -200) and type(tile) == Tile
+                        and tile.type() != 'tower_brick' and tile.type() != 'collide'):
                     self.rect.x = old_rect.x
         if pygame.time.get_ticks() - self.dash_start_time > self.dash_duration:
             self.is_dashing = False
@@ -945,7 +988,8 @@ class Bullet(pygame.sprite.Sprite):
             self.kill()
 
         for tile in tiles_group:
-            if pygame.sprite.collide_mask(self, tile) and type(tile) == Tile and tile.type() != "tower_brick":
+            if (pygame.sprite.collide_mask(self, tile) and type(tile) == Tile and tile.type() != "tower_brick"
+                    and tile.type() != "collide"):
                 self.kill()
         for enemy in enemy_group:
             if pygame.sprite.collide_mask(self, enemy) and not enemy.killed:
@@ -984,12 +1028,69 @@ class Ultimate(pygame.sprite.Sprite):
             self.kill()
 
         for tile in tiles_group:
-            if pygame.sprite.collide_mask(self, tile) and type(tile) == Tile and tile.type() != "tower_brick":
+            if (pygame.sprite.collide_mask(self, tile) and type(tile) == Tile and tile.type() != "tower_brick"
+                    and tile.type() != 'collide'):
                 self.kill()
         for enemy in enemy_group:
             if pygame.sprite.collide_mask(self, enemy) and not enemy.killed:
                 enemy.is_hurt = True
                 enemy.take_damage(self.dmg)
+                self.kill()
+
+
+class Y_bullet(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y, dmg, direction, id):
+        super().__init__(bullet_group, all_sprites)
+        self.id = id
+        self.image1 = load_image("attack_effects/Y_attack.png")
+        self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
+        self.rect = self.image.get_rect().move(pos_x, pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.direction = direction
+        speed = player_speed * 3
+        self.dmg = dmg
+
+        if self.direction == -1:
+            self.image = pygame.transform.flip(pygame.transform.scale(self.image1, (tile_width, tile_height)),
+                                               True,
+                                               False)
+            self.velocity = -speed
+        elif self.direction == 1:
+            self.image = pygame.transform.scale(self.image1, (tile_width, tile_height))
+            self.velocity = speed
+
+        self.creation_time = pygame.time.get_ticks()
+
+    def update(self):
+        self.rect.x += self.velocity // FPS
+
+        if pygame.time.get_ticks() - self.creation_time > 4000:
+            self.kill()
+            for enemy in enemy_group:
+                if type(enemy) == YuraMob:
+                    if self.id in enemy.ides:
+                        enemy.ides.remove(self.id)
+                        break
+
+        for tile in tiles_group:
+            if (pygame.sprite.collide_mask(self, tile) and type(tile) == Tile and tile.type() != "tower_brick"
+                    and tile.type() != 'collide'):
+                for enemy in enemy_group:
+                    if type(enemy) == YuraMob:
+                        if self.id in enemy.ides:
+                            enemy.ides.remove(self.id)
+                            break
+                self.kill()
+        for player in player_group:
+            if pygame.sprite.collide_mask(self, player) and not player.killed:
+                player.take_damage(self.dmg)
+                for enemy in enemy_group:
+                    if type(enemy) == YuraMob:
+                        if self.id in enemy.ides:
+                            enemy.hits += 1
+                            enemy.ides.remove(self.id)
+                            break
+                self.kill()
 
 
 class Camera:
@@ -1006,11 +1107,14 @@ class Camera:
         self.dy = -(target.rect.y + target.rect.h // 2 - height // 2)
 
     def draw_info(self):
+        # hp персонажа
         health_text = f"{player.hp}/1000"
         text_surface_health = pygame.font.Font(None, 50).render(health_text, True, (255, 255, 255))
         text_x = player.rect.x + (player.rect.w - text_surface_health.get_width()) // 2
         text_y = player.rect.y - text_surface_health.get_height() - 5
         screen.blit(text_surface_health, (text_x, text_y))
+
+        # зарядка ульты персонажа
         if player.ultimate_charge < 5:
             ultimate_text = f"{player.ultimate_charge}/5"
         else:
@@ -1020,6 +1124,22 @@ class Camera:
         text_y = player.rect.y - text_surface_ultimate.get_height() - 5 - text_surface_health.get_height()
         screen.blit(text_surface_ultimate, (text_x, text_y))
 
+        # То что моб тебя видит
+        for enemy in enemy_group:
+            if type(enemy) == YuraMob:
+                if enemy.is_attacking:
+                    text = '!'
+                    text_surface = pygame.font.Font(None, 50).render(text, True, (255, 0, 0))
+                    text_x = enemy.rect.x + (enemy.rect.w - text_surface.get_width()) // 2
+                    text_y = enemy.rect.y - text_surface.get_height() - 5
+                    screen.blit(text_surface, (text_x, text_y))
+                elif enemy.recharge != -228:
+                    text = '----'
+                    text_surface = pygame.font.Font(None, 50).render(text, True, (255, 0, 0))
+                    text_x = enemy.rect.x + (enemy.rect.w - text_surface.get_width()) // 2
+                    text_y = enemy.rect.y - text_surface.get_height() - 5
+                    screen.blit(text_surface, (text_x, text_y))
+
 
 def generate_level(level):
     new_player, x, y = None, None, None
@@ -1028,6 +1148,17 @@ def generate_level(level):
         for x in range(len(level[y])):
             if level[y][x] == '.':
                 pass
+            elif level[y][x] == 'C':
+                Tile('collide', x, y)
+            elif level[y][x] == 'f':
+                Tile('floor', x, y)
+                Tile('collide', x, y)
+            elif level[y][x] == "t":
+                Tile("tower_brick", x, y)
+                Tile('collide', x, y)
+            elif level[y][x] == "b":
+                Tile("towerrock", x, y)
+                Tile('collide', x, y)
             elif level[y][x] == '#':
                 Tile('floor', x, y)
             elif level[y][x] == "T":
@@ -1041,9 +1172,14 @@ def generate_level(level):
             elif level[y][x] == "$":
                 enemies.append(Walkingsoul(x, y, 1000, 50))
             elif level[y][x] == 'Y':
-                enemies.append(YuraMob(x, y, 2000, 500, 300))
+                enemies.append(YuraMob(x, y, 2000, 20, 200, 180))
             elif level[y][x] == 'y':
-                enemies.append(YuraMob(x, y, 2000, 500, 300))
+                enemies.append(YuraMob(x, y, 2000, 20, 200, 180))
+                Tile("tower_brick", x, y)
+            elif level[y][x] == 'U':
+                enemies.append(YuraMob(x, y, 3000, 80, 350, 300))
+            elif level[y][x] == 'u':
+                enemies.append(YuraMob(x, y, 3000, 80, 350, 300))
                 Tile("tower_brick", x, y)
             elif level[y][x] == "S":
                 enemies.append(Walkingsoul(x, y, 1200, 80))
@@ -1176,7 +1312,8 @@ if __name__ == '__main__':
     tile_width = tile_height = (height + width) // (256 / size_cof)  # изменение размера спрайтов под подходящий
 
     tile_images = {'floor': load_image("tiles/floor.png"), "towerrock": load_image("tiles/towerrock.png"),
-                   "pass_step_tile": load_image("tiles/Y_tile.png"), "tower_brick": load_image("tiles/tower_brick.png")}
+                   "pass_step_tile": load_image("tiles/Y_tile.png"), "tower_brick": load_image("tiles/tower_brick.png"),
+                   "collide": load_image("empty.png")}
 
     player_width = player_height = (height + width) // (64 / size_cof)  # изменение размера игрока
 
